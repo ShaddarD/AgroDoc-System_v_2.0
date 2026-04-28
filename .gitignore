@@ -1,0 +1,39 @@
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.tmp
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Docker
+*.pid
+docker-data/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# OS
+Thumbs.db

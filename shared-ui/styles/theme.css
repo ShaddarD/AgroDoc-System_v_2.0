@@ -1,0 +1,44 @@
+:root {
+  --color-primary: #2d7d2d;
+  --color-primary-dark: #1f5f1f;
+  --color-accent: #d9a300;
+  --color-text-main: #2f3743;
+  --color-text-muted: #5c6570;
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-border: #dfe5ec;
+  --sidebar-width: 240px;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #dfe5ec;
+  --sidebar-nav-hover: #eef5ee;
+  --sidebar-nav-active-bg: #e4efe4;
+  --shell-content-bg: #f5f7fa;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--color-text-main);
+  background: var(--color-bg);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: 1px solid var(--color-primary-dark);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}

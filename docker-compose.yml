@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: agrodoc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    volumes:
+      - files_data:/data/files
+    depends_on:
+      - postgres
+      - rabbitmq
+    ports:
+      - "8000:8000"
+
+  worker-documents:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app worker -Q documents -n documents@%h --concurrency=2
+    env_file:
+      - .env.local
+    depends_on:
+      - backend
+      - rabbitmq
+
+  worker-notifications:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app worker -Q notifications -n notifications@%h --concurrency=4
+    env_file:
+      - .env.local
+    depends_on:
+      - backend
+      - rabbitmq
+
+  worker-events:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app worker -Q events -n events@%h --concurrency=2
+    env_file:
+      - .env.local
+    depends_on:
+      - backend
+      - rabbitmq
+
+  worker-maintenance:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker.celery_app worker -Q maintenance -n maintenance@%h --concurrency=1
+    env_file:
+      - .env.local
+    depends_on:
+      - backend
+      - rabbitmq
+
+  frontend-app:
+    build:
+      context: .
+      dockerfile: frontend-app/Dockerfile
+    ports:
+      - "3000:80"
+
+  frontend-admin:
+    build:
+      context: .
+      dockerfile: frontend-admin/Dockerfile
+    ports:
+      - "3001:80"
+
+volumes:
+  postgres_data:
+  files_data:

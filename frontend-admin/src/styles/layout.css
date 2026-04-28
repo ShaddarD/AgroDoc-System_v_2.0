@@ -1,0 +1,89 @@
+.nav-link {
+  color: var(--color-text-main);
+  text-decoration: none;
+}
+
+.nav-link--active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.page {
+  max-width: 900px;
+}
+
+.muted {
+  color: #5c6570;
+  font-size: 0.9rem;
+}
+
+.form-page {
+  margin: 0 auto;
+  padding: 24px;
+  max-width: 420px;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px;
+  background: var(--color-bg);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+
+.form-error {
+  color: #b00020;
+  font-size: 0.9rem;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid var(--color-border);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.data-table thead {
+  background: #eef2f6;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}

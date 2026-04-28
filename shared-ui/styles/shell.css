@@ -1,0 +1,240 @@
+/* Shell: left sidebar + main content. Uses tokens from theme.css */
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.app-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 10px 12px 14px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.app-sidebar__brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar__toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.app-sidebar__toggle:hover {
+  background: var(--sidebar-nav-hover);
+}
+
+.app-sidebar--collapsed .app-sidebar__head {
+  flex-direction: column;
+  padding: 10px 6px;
+}
+
+.app-sidebar--collapsed .app-sidebar__brand {
+  display: none;
+}
+
+.app-sidebar--collapsed {
+  width: 64px;
+  min-width: 64px;
+}
+
+.app-sidebar__link-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-sidebar__icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--color-text-main);
+}
+
+.app-sidebar__link--active .app-sidebar__icon {
+  color: var(--color-primary);
+}
+
+.app-sidebar__label {
+  min-width: 0;
+}
+
+.app-sidebar--collapsed .app-sidebar__label {
+  display: none;
+}
+
+.app-sidebar--collapsed .app-sidebar__link {
+  display: flex;
+  justify-content: center;
+  padding: 10px 8px;
+}
+
+.app-sidebar--collapsed .app-sidebar__link-inner {
+  justify-content: center;
+}
+
+.app-sidebar--collapsed .app-sidebar__foot .app-sidebar__user > div:first-child {
+  display: none;
+}
+
+.app-sidebar--collapsed .app-sidebar__actions {
+  justify-content: center;
+}
+
+.app-sidebar--collapsed .app-sidebar__toggle {
+  width: 100%;
+}
+
+.app-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.app-sidebar__link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-main);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.app-sidebar__link:hover {
+  background: var(--sidebar-nav-hover);
+}
+
+.app-sidebar__link--active {
+  background: var(--sidebar-nav-active-bg);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.app-sidebar__foot {
+  padding: 12px 12px 16px;
+  border-top: 1px solid var(--sidebar-border);
+  font-size: 0.88rem;
+}
+
+.app-sidebar__user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.app-sidebar__name {
+  font-weight: 500;
+  color: var(--color-text-main);
+  word-break: break-word;
+}
+
+.app-sidebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--shell-content-bg);
+}
+
+.app-shell__main {
+  flex: 1;
+  padding: 24px;
+  overflow-x: auto;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.empty-hint {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted, #5c6570);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .app-sidebar__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+
+  .app-sidebar__link {
+    padding: 8px 12px;
+  }
+
+  .app-sidebar__foot {
+    border-top: none;
+    border-bottom: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .app-sidebar__user {
+    margin-bottom: 0;
+  }
+}

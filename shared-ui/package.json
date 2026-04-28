@@ -1,0 +1,10 @@
+{
+  "name": "agrodoc-shared-ui",
+  "private": true,
+  "description": "Shared TS/CSS used by frontend-app and frontend-admin (Vite resolves from app; this package supplies types for tsc on ../shared-ui/src).",
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "typescript": "~5.6.3"
+  }
+}

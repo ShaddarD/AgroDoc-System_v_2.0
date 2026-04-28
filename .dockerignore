@@ -1,0 +1,17 @@
+.git
+.github
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+**/.venv
+**/venv
+.env
+.env.local
+.env.production
+infra
+terminals
+agent-transcripts
