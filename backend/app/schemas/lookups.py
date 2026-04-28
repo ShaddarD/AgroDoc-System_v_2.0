@@ -25,6 +25,15 @@ class LookupCodeOut(BaseModel):
     description: str
 
 
+class LookupLaboratoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    uuid: UUID
+    lab_rus: str
+    lab_eng: str | None
+    is_active: bool
+
+
 class LookupRoleCreate(BaseModel):
     role_code: str = Field(..., max_length=50)
     description: str = Field(..., max_length=255)

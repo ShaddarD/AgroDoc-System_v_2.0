@@ -36,6 +36,17 @@ class LookupFileType(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
+class LookupLaboratory(Base):
+    __tablename__ = "lookup_laboratories"
+
+    uuid: Mapped[uuid_pkg.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    lab_rus: Mapped[str] = mapped_column(String(255), nullable=False)
+    lab_eng: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
 class LookupAccessModule(Base):
     __tablename__ = "lookup_access_modules"
 

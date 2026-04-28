@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_request_roles, require_admin_roles
 from app.db.session import get_db
 from app.models.counterparty import Counterparty
-from app.models.lookups import LookupFileType, LookupRoleCode, LookupSourceType, LookupStatusCode
+from app.models.lookups import LookupFileType, LookupLaboratory, LookupRoleCode, LookupSourceType, LookupStatusCode
 from app.models.power_of_attorney import PowerOfAttorney
 from app.models.product import Product
 from app.models.shipping_line import ShippingLine
@@ -18,6 +18,7 @@ from app.schemas.lookups import (
     CounterpartyOut,
     CounterpartyPatchIn,
     LookupCodeOut,
+    LookupLaboratoryOut,
     LookupRoleCreate,
     LookupRoleOut,
     LookupStatusOut,
@@ -57,6 +58,17 @@ def list_source_types(db: Session = Depends(get_db)) -> list[LookupSourceType]:
 @router.get("/file-types", response_model=list[LookupCodeOut])
 def list_file_types(db: Session = Depends(get_db)) -> list[LookupFileType]:
     return list(db.scalars(select(LookupFileType).order_by(LookupFileType.code)).all())
+
+
+@router.get("/laboratories", response_model=list[LookupLaboratoryOut])
+def list_laboratories(db: Session = Depends(get_db)) -> list[LookupLaboratory]:
+    return list(
+        db.scalars(
+            select(LookupLaboratory)
+            .where(LookupLaboratory.is_active.is_(True))
+            .order_by(LookupLaboratory.lab_rus)
+        ).all()
+    )
 
 
 @router.post("/roles", response_model=LookupRoleOut, status_code=status.HTTP_201_CREATED)

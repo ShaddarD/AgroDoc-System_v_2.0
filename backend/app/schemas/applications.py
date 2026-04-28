@@ -15,6 +15,7 @@ class ApplicationPatchRequest(BaseModel):
 
     application_number: str | None = Field(None, max_length=100)
     application_type_code: str | None = Field(None, max_length=50)
+    laboratory_uuid: UUID | None = None
     applicant_counterparty_uuid: UUID | None = None
     assigned_to: UUID | None = None
     terminal_uuid: UUID | None = None
@@ -25,6 +26,8 @@ class ApplicationPatchRequest(BaseModel):
     container_count_snapshot: int | None = None
     places_snapshot: int | None = None
     notes: str | None = None
+    destination_place_ru: str | None = None
+    destination_place_en: str | None = None
     izveshenie: str | None = None
     notes_in_table: str | None = None
     fss_plan_issue_date: date | None = None
@@ -43,6 +46,7 @@ class ApplicationResponse(BaseModel):
     uuid: UUID
     application_number: str | None
     application_type_code: str
+    laboratory_uuid: UUID | None
     status_code: str
     source_type: str
     applicant_counterparty_uuid: UUID | None
@@ -54,6 +58,8 @@ class ApplicationResponse(BaseModel):
     container_count_snapshot: int | None
     places_snapshot: int | None
     notes: str | None
+    destination_place_ru: str | None
+    destination_place_en: str | None
     izveshenie: str | None
     notes_in_table: str | None
     fss_plan_issue_date: date | None

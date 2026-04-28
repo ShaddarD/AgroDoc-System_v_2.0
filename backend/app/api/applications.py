@@ -54,6 +54,7 @@ def _apply_payload_to_application(application: Application, payload: dict) -> No
     mapping = {
         "application_number": "application_number",
         "application_type_code": "application_type_code",
+        "laboratory_uuid": "laboratory_uuid",
         "applicant_counterparty_uuid": "applicant_counterparty_uuid",
         "assigned_to": "assigned_to",
         "terminal_uuid": "terminal_uuid",
@@ -64,6 +65,8 @@ def _apply_payload_to_application(application: Application, payload: dict) -> No
         "container_count_snapshot": "container_count_snapshot",
         "places_snapshot": "places_snapshot",
         "notes": "notes",
+        "destination_place_ru": "destination_place_ru",
+        "destination_place_en": "destination_place_en",
         "izveshenie": "izveshenie",
         "notes_in_table": "notes_in_table",
         "fss_plan_issue_date": "fss_plan_issue_date",

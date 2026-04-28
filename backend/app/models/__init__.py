@@ -10,6 +10,7 @@ from app.models.files import FileRecord
 from app.models.lookups import (
     AccountModuleAccess,
     LookupAccessModule,
+    LookupLaboratory,
     LookupFileType,
     LookupRoleCode,
     LookupSourceType,
@@ -27,6 +28,7 @@ __all__ = [
     "LookupSourceType",
     "LookupFileType",
     "LookupAccessModule",
+    "LookupLaboratory",
     "AccountModuleAccess",
     "Counterparty",
     "Account",

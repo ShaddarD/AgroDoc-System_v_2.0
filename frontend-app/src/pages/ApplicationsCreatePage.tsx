@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAuth } from "../auth/AuthContext";
 
 type CodeRow = { code: string; description: string };
 type CounterpartyRow = {
@@ -23,13 +24,20 @@ type ProductRow = {
   botanical_name_latin: string | null;
 };
 type ShippingLineRow = { uuid: string; code: string; name_ru: string };
-type PowerOfAttorneyRow = { uuid: string; poa_number: string; issue_date: string };
-type AccountRow = { uuid: string; first_name: string; last_name: string; role_code: string; is_active: boolean };
+type LaboratoryRow = { uuid: string; lab_rus: string; lab_eng: string | null; is_active: boolean };
+type PowerOfAttorneyRow = {
+  uuid: string;
+  poa_number: string;
+  issue_date: string;
+  principal_counterparty_uuid: string | null;
+  status_code: string;
+};
 
 type CreateFormState = {
   source_type: string;
   application_number: string;
   application_type_code: string;
+  laboratory_uuid: string;
   applicant_counterparty_uuid: string;
   applicant_custom: string;
   applicant_actual_address: string;
@@ -58,10 +66,10 @@ type CreateFormState = {
   tnved_code: string;
   research_docs: string;
   weight_tons: string;
-  places_count: string;
   packing_type: string;
-  destination_place: string;
-  assigned_to: string;
+  places_count: string;
+  destination_place_ru: string;
+  destination_place_en: string;
   terminal_uuid: string;
   inspection_place_custom: string;
   planned_inspection_date: string;
@@ -91,6 +99,7 @@ const defaultState: CreateFormState = {
   source_type: "manual",
   application_number: "",
   application_type_code: "vnikkr",
+  laboratory_uuid: "",
   applicant_counterparty_uuid: "",
   applicant_custom: "",
   applicant_actual_address: "",
@@ -119,10 +128,10 @@ const defaultState: CreateFormState = {
   tnved_code: "",
   research_docs: "",
   weight_tons: "",
-  places_count: "",
   packing_type: "",
-  destination_place: "",
-  assigned_to: "",
+  places_count: "",
+  destination_place_ru: "",
+  destination_place_en: "",
   terminal_uuid: "",
   inspection_place_custom: "",
   planned_inspection_date: "",
@@ -156,16 +165,24 @@ const CERTIFICATE_OPTIONS = [
   { key: "gmo", label: "Сертификат ГМО" },
 ] as const;
 
+const BULK_PACKING_CODES = new Set(["НАВАЛ", "BULK"]);
+
+const PACKING_TYPE_OPTIONS = [
+  { code: "НАВАЛ", description: "Насыпью" },
+  { code: "МЕШКИ", description: "Мешки" },
+  { code: "БИГ БЕГИ", description: "Биг беги" },
+];
+
 function mapFormToPayload(form: CreateFormState): Record<string, unknown> {
   return {
     application_number: form.application_number.trim() || null,
     application_type_code: form.application_type_code.trim() || "vnikkr",
+    laboratory_uuid: form.laboratory_uuid || null,
     applicant_counterparty_uuid: form.applicant_counterparty_uuid || null,
-    assigned_to: form.assigned_to || null,
     terminal_uuid: form.terminal_uuid || null,
     product_uuid: form.product_uuid || null,
     stuffing_act_uuid: form.stuffing_act_uuid.trim() || null,
-    master_application_uuid: form.master_application_uuid.trim() || null,
+    master_application_uuid: null,
     container_count_snapshot: form.container_count_snapshot ? Number(form.container_count_snapshot) : null,
     places_snapshot: form.places_snapshot ? Number(form.places_snapshot) : null,
     izveshenie: form.izveshenie.trim() || null,
@@ -202,7 +219,8 @@ function mapFormToPayload(form: CreateFormState): Record<string, unknown> {
     weight_tons: form.weight_tons ? Number(form.weight_tons) : null,
     places_count: form.places_count.trim() || null,
     packing_type: form.packing_type.trim() || null,
-    destination_place: form.destination_place.trim() || null,
+    destination_place_ru: form.destination_place_ru.trim() || null,
+    destination_place_en: form.destination_place_en.trim() || null,
     inspection_place_custom: form.inspection_place_custom.trim() || null,
     planned_inspection_date: form.planned_inspection_date || null,
     cert_safety_quality_checked: form.cert_safety_quality_checked,
@@ -220,6 +238,7 @@ function mapFormToPayload(form: CreateFormState): Record<string, unknown> {
 
 export function ApplicationsCreatePage() {
   const nav = useNavigate();
+  const { account } = useAuth();
   const [form, setForm] = useState<CreateFormState>(defaultState);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -229,8 +248,8 @@ export function ApplicationsCreatePage() {
   const [terminals, setTerminals] = useState<TerminalRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [shippingLines, setShippingLines] = useState<ShippingLineRow[]>([]);
+  const [laboratories, setLaboratories] = useState<LaboratoryRow[]>([]);
   const [poaRows, setPoaRows] = useState<PowerOfAttorneyRow[]>([]);
-  const [managers, setManagers] = useState<AccountRow[]>([]);
 
   function fillExporterFields(c: CounterpartyRow) {
     setForm((prev) => ({
@@ -247,16 +266,16 @@ export function ApplicationsCreatePage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [rSources, rCounterparties, rTerminals, rProducts, rShippingLines, rPoa, rAccounts] = await Promise.all([
+      const [rSources, rCounterparties, rTerminals, rProducts, rShippingLines, rLabs, rPoa] = await Promise.all([
         api.fetch("/lookups/source-types"),
         api.fetch("/lookups/counterparties"),
         api.fetch("/lookups/terminals"),
         api.fetch("/lookups/products"),
         api.fetch("/lookups/shipping-lines"),
+        api.fetch("/lookups/laboratories"),
         api.fetch("/lookups/powers-of-attorney"),
-        api.fetch("/admin/accounts?limit=500"),
       ]);
-      if (!rSources.ok || !rCounterparties.ok || !rTerminals.ok || !rProducts.ok || !rShippingLines.ok || !rPoa.ok) {
+      if (!rSources.ok || !rCounterparties.ok || !rTerminals.ok || !rProducts.ok || !rShippingLines.ok || !rLabs.ok || !rPoa.ok) {
         if (!cancelled) setError("Не удалось загрузить справочники.");
         return;
       }
@@ -267,16 +286,13 @@ export function ApplicationsCreatePage() {
       setTerminals((await rTerminals.json()) as TerminalRow[]);
       setProducts((await rProducts.json()) as ProductRow[]);
       setShippingLines((await rShippingLines.json()) as ShippingLineRow[]);
+      const labs = (await rLabs.json()) as LaboratoryRow[];
+      setLaboratories(labs);
       setPoaRows((await rPoa.json()) as PowerOfAttorneyRow[]);
-      if (rAccounts.ok) {
-        const rows = (await rAccounts.json()) as AccountRow[];
-        setManagers(rows.filter((x) => x.is_active));
-      } else {
-        setManagers([]);
-      }
       setForm((prev) => ({
         ...prev,
         source_type: src.some((x) => x.code === prev.source_type) ? prev.source_type : src[0]?.code ?? "manual",
+        laboratory_uuid: labs.some((x) => x.uuid === prev.laboratory_uuid) ? prev.laboratory_uuid : labs[0]?.uuid ?? "",
       }));
     })();
     return () => {
@@ -284,9 +300,33 @@ export function ApplicationsCreatePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!account) return;
+    const fi = account.first_name?.trim().charAt(0) || "";
+    const mi = account.middle_name?.trim().charAt(0) || "";
+    const initials = [fi, mi].filter(Boolean).map((x) => `${x}.`).join("");
+    const fio = `${account.last_name} ${initials}`.trim();
+    const contact = [account.phone?.trim(), fio, account.email?.trim()].filter(Boolean).join(", ");
+    setForm((prev) => (prev.poruchenie ? prev : { ...prev, poruchenie: contact }));
+  }, [account]);
+
+  useEffect(() => {
+    if (!form.exporter_ref) {
+      setForm((prev) => ({ ...prev, power_of_attorney_uuid: "" }));
+      return;
+    }
+    const matched = poaRows
+      .filter((x) => x.principal_counterparty_uuid === form.exporter_ref)
+      .sort((a, b) => b.issue_date.localeCompare(a.issue_date));
+    const preferred = matched.find((x) => x.status_code === "active") ?? matched[0];
+    setForm((prev) => ({ ...prev, power_of_attorney_uuid: preferred?.uuid ?? "" }));
+  }, [form.exporter_ref, poaRows]);
+
+  const placesDisabled = BULK_PACKING_CODES.has((form.packing_type || "").toUpperCase());
+
   const validationError = useMemo(() => {
     if (!form.source_type) return "Выберите тип источника.";
-    if (!form.application_type_code.trim()) return "Укажите код типа заявки.";
+    if (!form.laboratory_uuid) return "Выберите лабораторию.";
     if (!form.applicant_counterparty_uuid) return "Выберите заявителя.";
     if (!form.terminal_uuid) return "Выберите терминал.";
     if (!form.product_uuid) return "Выберите продукцию.";
@@ -349,12 +389,19 @@ export function ApplicationsCreatePage() {
               <input id="application_number" className="input" value={form.application_number} onChange={(e) => setForm((prev) => ({ ...prev, application_number: e.target.value }))} />
             </div>
             <div className="form-field">
-              <label htmlFor="application_type_code">Тип заявки</label>
-              <input id="application_type_code" className="input" value={form.application_type_code} onChange={(e) => setForm((prev) => ({ ...prev, application_type_code: e.target.value }))} required />
+              <label htmlFor="laboratory_uuid">Лаборатория</label>
+              <select id="laboratory_uuid" className="input" value={form.laboratory_uuid} onChange={(e) => setForm((prev) => ({ ...prev, laboratory_uuid: e.target.value }))} required>
+                <option value="">—</option>
+                {laboratories.map((lab) => (
+                  <option key={lab.uuid} value={lab.uuid}>
+                    {lab.lab_rus}{lab.lab_eng ? ` / ${lab.lab_eng}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label htmlFor="master_application_uuid">№ Мастер-Акта</label>
-              <input id="master_application_uuid" className="input" value={form.master_application_uuid} onChange={(e) => setForm((prev) => ({ ...prev, master_application_uuid: e.target.value }))} />
+              <input id="master_application_uuid" className="input" value={form.master_application_uuid} disabled />
             </div>
           </div>
         </section>
@@ -402,17 +449,6 @@ export function ApplicationsCreatePage() {
               <input id="poruchenie" className="input" value={form.poruchenie} onChange={(e) => setForm((prev) => ({ ...prev, poruchenie: e.target.value }))} />
             </div>
             <div className="form-field">
-              <label htmlFor="power_of_attorney_uuid">Доверенность №</label>
-              <select id="power_of_attorney_uuid" className="input" value={form.power_of_attorney_uuid} onChange={(e) => setForm((prev) => ({ ...prev, power_of_attorney_uuid: e.target.value }))}>
-                <option value="">—</option>
-                {poaRows.map((p) => (
-                  <option key={p.uuid} value={p.uuid}>
-                    {p.poa_number}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
               <label htmlFor="contract_number_cok">№ Договора с ЦОК АПК</label>
               <input id="contract_number_cok" className="input" value={form.contract_number_cok} onChange={(e) => setForm((prev) => ({ ...prev, contract_number_cok: e.target.value }))} />
             </div>
@@ -453,6 +489,19 @@ export function ApplicationsCreatePage() {
             <div className="form-field"><label htmlFor="exporter_inn">ИНН</label><input id="exporter_inn" className="input" value={form.exporter_inn} onChange={(e) => setForm((prev) => ({ ...prev, exporter_inn: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="exporter_kpp">КПП</label><input id="exporter_kpp" className="input" value={form.exporter_kpp} onChange={(e) => setForm((prev) => ({ ...prev, exporter_kpp: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="exporter_ogrn">ОГРН</label><input id="exporter_ogrn" className="input" value={form.exporter_ogrn} onChange={(e) => setForm((prev) => ({ ...prev, exporter_ogrn: e.target.value }))} /></div>
+            <div className="form-field">
+              <label htmlFor="power_of_attorney_uuid">Доверенность №</label>
+              <select id="power_of_attorney_uuid" className="input" value={form.power_of_attorney_uuid} onChange={(e) => setForm((prev) => ({ ...prev, power_of_attorney_uuid: e.target.value }))}>
+                <option value="">—</option>
+                {poaRows
+                  .filter((p) => !form.exporter_ref || p.principal_counterparty_uuid === form.exporter_ref)
+                  .map((p) => (
+                    <option key={p.uuid} value={p.uuid}>
+                      {p.poa_number}
+                    </option>
+                  ))}
+              </select>
+            </div>
             <div className="form-field form-field--inline">
               <label htmlFor="by_instruction">По поручению</label>
               <input id="by_instruction" type="checkbox" checked={form.by_instruction} onChange={(e) => setForm((prev) => ({ ...prev, by_instruction: e.target.checked }))} />
@@ -529,9 +578,40 @@ export function ApplicationsCreatePage() {
           <h2>Груз и отгрузка</h2>
           <div className="app-create-grid">
             <div className="form-field"><label htmlFor="weight_tons">Вес (тонн)</label><input id="weight_tons" type="number" className="input" value={form.weight_tons} onChange={(e) => setForm((prev) => ({ ...prev, weight_tons: e.target.value }))} /></div>
-            <div className="form-field"><label htmlFor="places_count">Количество мест</label><input id="places_count" className="input" value={form.places_count} onChange={(e) => setForm((prev) => ({ ...prev, places_count: e.target.value }))} /></div>
-            <div className="form-field"><label htmlFor="packing_type">Тип упаковки</label><input id="packing_type" className="input" value={form.packing_type} onChange={(e) => setForm((prev) => ({ ...prev, packing_type: e.target.value }))} /></div>
-            <div className="form-field app-create-grid__full"><label htmlFor="destination_place">Пункт назначения</label><input id="destination_place" className="input" value={form.destination_place} onChange={(e) => setForm((prev) => ({ ...prev, destination_place: e.target.value }))} /></div>
+            <div className="form-field">
+              <label htmlFor="packing_type">Тип упаковки</label>
+              <select
+                id="packing_type"
+                className="input"
+                value={form.packing_type}
+                onChange={(e) =>
+                  setForm((prev) => {
+                    const nextType = e.target.value;
+                    const isBulk = BULK_PACKING_CODES.has(nextType.toUpperCase());
+                    return { ...prev, packing_type: nextType, places_count: isBulk ? "0" : prev.places_count };
+                  })
+                }
+              >
+                <option value="">—</option>
+                {PACKING_TYPE_OPTIONS.map((x) => (
+                  <option key={x.code} value={x.code}>
+                    {x.code} — {x.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label htmlFor="places_count">Количество мест</label>
+              <input
+                id="places_count"
+                className="input"
+                value={placesDisabled ? "0" : form.places_count}
+                disabled={placesDisabled}
+                onChange={(e) => setForm((prev) => ({ ...prev, places_count: e.target.value }))}
+              />
+            </div>
+            <div className="form-field"><label htmlFor="destination_place_ru">Пункт назначения (рус)</label><input id="destination_place_ru" className="input" value={form.destination_place_ru} onChange={(e) => setForm((prev) => ({ ...prev, destination_place_ru: e.target.value }))} /></div>
+            <div className="form-field"><label htmlFor="destination_place_en">Пункт назначения (eng)</label><input id="destination_place_en" className="input" value={form.destination_place_en} onChange={(e) => setForm((prev) => ({ ...prev, destination_place_en: e.target.value }))} /></div>
           </div>
         </section>
 
@@ -561,25 +641,12 @@ export function ApplicationsCreatePage() {
             </div>
             <div className="form-field"><label htmlFor="inspection_place_custom">Адрес</label><input id="inspection_place_custom" className="input" value={form.inspection_place_custom} onChange={(e) => setForm((prev) => ({ ...prev, inspection_place_custom: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="planned_inspection_date">Предполагаемая дата начала инспекции</label><input id="planned_inspection_date" type="date" className="input" value={form.planned_inspection_date} onChange={(e) => setForm((prev) => ({ ...prev, planned_inspection_date: e.target.value }))} /></div>
-            <div className="form-field">
-              <label htmlFor="assigned_to">Менеджер</label>
-              <select id="assigned_to" className="input" value={form.assigned_to} onChange={(e) => setForm((prev) => ({ ...prev, assigned_to: e.target.value }))}>
-                <option value="">—</option>
-                {managers.map((m) => (
-                  <option key={m.uuid} value={m.uuid}>
-                    {m.last_name} {m.first_name} ({m.role_code})
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </section>
 
         <section className="app-create-form__section">
           <h2>Плановые поля таблицы applications</h2>
           <div className="app-create-grid">
-            <div className="form-field"><label htmlFor="container_count_snapshot">Кол-во</label><input id="container_count_snapshot" type="number" className="input" value={form.container_count_snapshot} onChange={(e) => setForm((prev) => ({ ...prev, container_count_snapshot: e.target.value }))} /></div>
-            <div className="form-field"><label htmlFor="places_snapshot">Вес</label><input id="places_snapshot" type="number" className="input" value={form.places_snapshot} onChange={(e) => setForm((prev) => ({ ...prev, places_snapshot: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="izveshenie">Карантинки</label><input id="izveshenie" className="input" value={form.izveshenie} onChange={(e) => setForm((prev) => ({ ...prev, izveshenie: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="fss_plan_issue_date">Дата выдачи ФСС(план)</label><input id="fss_plan_issue_date" type="date" className="input" value={form.fss_plan_issue_date} onChange={(e) => setForm((prev) => ({ ...prev, fss_plan_issue_date: e.target.value }))} /></div>
             <div className="form-field"><label htmlFor="shipping_line_uuid">Линия перевозки</label><select id="shipping_line_uuid" className="input" value={form.shipping_line_uuid} onChange={(e) => setForm((prev) => ({ ...prev, shipping_line_uuid: e.target.value }))}><option value="">—</option>{shippingLines.map((s) => <option key={s.uuid} value={s.uuid}>{s.code} — {s.name_ru}</option>)}</select></div>
@@ -590,32 +657,37 @@ export function ApplicationsCreatePage() {
 
         <section className="app-create-form__section">
           <h2>Международные сертификаты</h2>
-          <div className="app-create-grid">
+          <div className="app-create-certs">
             {CERTIFICATE_OPTIONS.map((cert) => {
               const checkedKey = `cert_${cert.key}_checked` as keyof CreateFormState;
               const copiesKey = `cert_${cert.key}_copies` as keyof CreateFormState;
               return (
-                <div key={cert.key} className="form-field app-create-grid__full" style={{ borderBottom: "1px dashed #d8dee6", paddingBottom: 8 }}>
-                  <div className="form-field form-field--inline" style={{ justifyContent: "space-between" }}>
-                    <label htmlFor={String(checkedKey)}>{cert.label}</label>
+                <div key={cert.key} className="app-create-certs__row">
+                  <div className="form-field form-field--inline app-create-certs__main">
                     <input
                       id={String(checkedKey)}
                       type="checkbox"
                       checked={Boolean(form[checkedKey])}
                       onChange={(e) => setForm((prev) => ({ ...prev, [checkedKey]: e.target.checked }))}
                     />
+                    <label htmlFor={String(checkedKey)}>{cert.label}</label>
                   </div>
-                  <div className="form-field" style={{ maxWidth: 120 }}>
-                    <label htmlFor={String(copiesKey)}>Копий</label>
-                    <input
+                  <div className="app-create-certs__copies">
+                    <label htmlFor={String(copiesKey)}>Копий:</label>
+                    <select
                       id={String(copiesKey)}
-                      type="number"
-                      min={0}
                       className="input"
                       disabled={!Boolean(form[checkedKey])}
                       value={String(form[copiesKey] || "")}
                       onChange={(e) => setForm((prev) => ({ ...prev, [copiesKey]: e.target.value }))}
-                    />
+                    >
+                      <option value="">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </select>
                   </div>
                 </div>
               );
