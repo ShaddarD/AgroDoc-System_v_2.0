@@ -20,6 +20,13 @@ export function LoginPage() {
     }
   }, [authLoading, isAuthenticated, from, nav]);
 
+  function localizeLoginError(message: string): string {
+    if (message === "invalid_login_or_password") {
+      return "Неверный логин или пароль.";
+    }
+    return message;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
@@ -28,7 +35,7 @@ export function LoginPage() {
       await login(loginField, password);
       nav(from, { replace: true });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Неверный логин или пароль.");
+      setErr(e instanceof Error ? localizeLoginError(e.message) : "Неверный логин или пароль.");
     } finally {
       setSubmitting(false);
     }

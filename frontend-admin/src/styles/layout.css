@@ -9,7 +9,13 @@
 }
 
 .page {
-  max-width: 900px;
+  width: 100%;
+  max-width: min(100%, 1680px);
+  margin: 0 auto;
+}
+
+.card.page {
+  padding: clamp(12px, 2vw, 24px);
 }
 
 .muted {
@@ -86,4 +92,10 @@
 .table-wrap {
   overflow-x: auto;
   margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .page {
+    max-width: 100%;
+  }
 }

@@ -332,7 +332,7 @@ export function ApplicationDetailPage() {
           </p>
         ) : null}
         <form className="form" onSubmit={submitStatus} style={{ flexFlow: "row wrap", alignItems: "flex-end" }}>
-          <div className="form-field" style={{ minWidth: 200 }}>
+          <div className="form-field" style={{ flex: "1 1 240px", minWidth: 0 }}>
             <label htmlFor="ns">Новый статус</label>
             <select
               id="ns"
@@ -350,7 +350,7 @@ export function ApplicationDetailPage() {
               ))}
             </select>
           </div>
-          <div className="form-field" style={{ minWidth: 200, flex: 1 }}>
+          <div className="form-field" style={{ flex: "2 1 320px", minWidth: 0 }}>
             <label htmlFor="cm">Комментарий</label>
             <input id="cm" className="input" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
@@ -513,7 +513,7 @@ export function ApplicationDetailPage() {
       {tab === "files" ? (
         <div>
           <form className="form" style={{ marginBottom: 16, flexFlow: "row wrap", alignItems: "flex-end" }} onSubmit={submitUpload}>
-            <div className="form-field" style={{ minWidth: 160 }}>
+            <div className="form-field" style={{ flex: "1 1 220px", minWidth: 0 }}>
               <label htmlFor="ft">Тип файла</label>
               <select id="ft" className="input" value={upType} onChange={(e) => setUpType(e.target.value)}>
                 <option value="">—</option>

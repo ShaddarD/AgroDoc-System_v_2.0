@@ -19,7 +19,10 @@ export function AppLayout() {
 
   const fullName = useMemo(() => {
     if (!account) return "";
-    return `${account.last_name} ${account.first_name}`.trim();
+    const fi = account.first_name?.trim().charAt(0) || "";
+    const mi = account.middle_name?.trim().charAt(0) || "";
+    const initials = [fi, mi].filter(Boolean).map((x) => `${x}.`).join("");
+    return `${account.last_name}${initials ? ` ${initials}` : ""}`.trim();
   }, [account]);
 
   useEffect(() => {
@@ -170,9 +173,6 @@ export function AppLayout() {
                   </NavLink>
                   <NavLink to="/profile" className="profile-menu__item" onClick={() => setMenuOpen(false)}>
                     Безопасность
-                  </NavLink>
-                  <NavLink to="/lookups" className="profile-menu__item" onClick={() => setMenuOpen(false)}>
-                    Справочники
                   </NavLink>
                   <button
                     type="button"

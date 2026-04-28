@@ -59,7 +59,7 @@ export function LookupsPage() {
       <h1>Справочники</h1>
       {error ? <p className="form-error">Ошибка загрузки: {error}</p> : null}
       {isAdmin ? (
-        <form className="form" style={{ marginBottom: 24, maxWidth: 480 }} onSubmit={addRole}>
+        <form className="form" style={{ marginBottom: 24, width: "min(100%, 640px)" }} onSubmit={addRole}>
           <h2>Новая роль (только admin)</h2>
           <div className="form-field">
             <label htmlFor="rc">Код</label>

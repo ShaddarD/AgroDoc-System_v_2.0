@@ -14,7 +14,6 @@ type AppRow = {
 type ListBody = { items: AppRow[]; total: number; page: number; page_size: number };
 
 type StatusRow = { status_code: string; description: string };
-type CodeRow = { code: string; description: string };
 
 export function ApplicationsPage() {
   const nav = useNavigate();
@@ -26,27 +25,11 @@ export function ApplicationsPage() {
   const [statuses, setStatuses] = useState<StatusRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sources, setSources] = useState<CodeRow[]>([]);
-  const [newSource, setNewSource] = useState("manual");
-  const [payloadText, setPayloadText] = useState("{}");
-  const [createErr, setCreateErr] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
 
   const loadStatuses = useCallback(async () => {
     const r = await api.fetch("/lookups/statuses");
     if (r.ok) {
       setStatuses((await r.json()) as StatusRow[]);
-    }
-  }, []);
-
-  const loadSources = useCallback(async () => {
-    const r = await api.fetch("/lookups/source-types");
-    if (r.ok) {
-      const j = (await r.json()) as CodeRow[];
-      setSources(j);
-      if (j.length > 0) {
-        setNewSource((prev) => (j.some((x) => x.code === prev) ? prev : j[0].code));
-      }
     }
   }, []);
 
@@ -75,77 +58,20 @@ export function ApplicationsPage() {
 
   useEffect(() => {
     void loadStatuses();
-    void loadSources();
-  }, [loadStatuses, loadSources]);
+  }, [loadStatuses]);
 
   useEffect(() => {
     void loadList();
   }, [loadList]);
 
-  async function createApplication(e: React.FormEvent) {
-    e.preventDefault();
-    setCreateErr(null);
-    let payload: Record<string, unknown> = {};
-    if (payloadText.trim()) {
-      try {
-        payload = JSON.parse(payloadText) as Record<string, unknown>;
-      } catch {
-        setCreateErr("Некорректный JSON в поле «данные»");
-        return;
-      }
-    }
-    setCreating(true);
-    const r = await api.fetch("/applications", {
-      method: "POST",
-      body: JSON.stringify({ source_type: newSource, payload }),
-    });
-    if (!r.ok) {
-      setCreateErr(await api.readApiError(r));
-    } else {
-      const b = (await r.json()) as { uuid: string };
-      void loadList();
-      nav(`/applications/${b.uuid}`);
-    }
-    setCreating(false);
-  }
-
   return (
     <section className="card page page-wide">
       <h1>Заявки</h1>
-      <section className="card" style={{ marginBottom: 20, padding: 16 }}>
-        <h2 style={{ fontSize: "1.1rem", margin: "0 0 8px" }}>Новая заявка</h2>
-        <form className="form" onSubmit={createApplication} style={{ gap: 12 }}>
-          <div className="form-field" style={{ maxWidth: 320 }}>
-            <label htmlFor="src">Тип источника</label>
-            <select
-              id="src"
-              className="input"
-              value={newSource}
-              onChange={(e) => setNewSource(e.target.value)}
-            >
-              {sources.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.code} — {s.description}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-field" style={{ flex: 1, minWidth: 200 }}>
-            <label htmlFor="pj">Данные (JSON)</label>
-            <textarea
-              id="pj"
-              className="input"
-              style={{ minHeight: 100, width: "100%" }}
-              value={payloadText}
-              onChange={(e) => setPayloadText(e.target.value)}
-            />
-          </div>
-          {createErr ? <p className="form-error">{createErr}</p> : null}
-          <button type="submit" className="btn-primary" disabled={creating}>
-            {creating ? "Создание…" : "Создать"}
-          </button>
-        </form>
-      </section>
+      <p>
+        <button type="button" className="btn-primary" onClick={() => nav("/applications/new")}>
+          Создать заявку
+        </button>
+      </p>
       <form
         className="filters"
         onSubmit={(e) => {

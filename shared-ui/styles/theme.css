@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500;600&display=swap");
+
 :root {
   --color-primary: #2d7d2d;
   --color-primary-dark: #1f5f1f;
@@ -23,9 +25,14 @@
 
 body {
   margin: 0;
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Open Sans", "Segoe UI", Roboto, Arial, sans-serif;
   color: var(--color-text-main);
   background: var(--color-bg);
+}
+
+h1,
+h2 {
+  font-family: Montserrat, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 .btn-primary {

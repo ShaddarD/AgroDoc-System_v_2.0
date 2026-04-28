@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
+import { ApplicationsCreatePage } from "./pages/ApplicationsCreatePage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -24,6 +25,14 @@ export function App() {
           element={
             <RequireAuth>
               <ApplicationsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="applications/new"
+          element={
+            <RequireAuth>
+              <ApplicationsCreatePage />
             </RequireAuth>
           }
         />

@@ -205,7 +205,7 @@ export function UsersPage() {
             <label htmlFor="cln">Фамилия</label>
             <input id="cln" className="input" value={cLast} onChange={(e) => setCLast(e.target.value)} required />
           </div>
-          <div className="form-field" style={{ minWidth: 200 }}>
+          <div className="form-field" style={{ flex: "1 1 220px", minWidth: 0 }}>
             <label htmlFor="ce">Email</label>
             <input id="ce" type="email" className="input" value={cEmail} onChange={(e) => setCEmail(e.target.value)} />
           </div>
@@ -262,7 +262,7 @@ export function UsersPage() {
                   <td>
                     <select
                       className="input"
-                      style={{ minWidth: 140 }}
+                      style={{ width: "100%", minWidth: 0 }}
                       value={u.role_code}
                       onChange={(e) => void changeRole(u, e.target.value)}
                       aria-label={`Роль ${u.login}`}

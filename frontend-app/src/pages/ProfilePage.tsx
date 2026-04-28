@@ -4,6 +4,17 @@ import { useAuth } from "../auth/AuthContext";
 import { api } from "../lib/api";
 
 type CounterpartyRow = { uuid: string; name_ru: string };
+type AccountRow = {
+  uuid: string;
+  login: string;
+  role_code: string;
+  first_name: string;
+  last_name: string;
+  counterparty_uuid: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+};
 type SessionRow = {
   jti: string;
   expires_at: string;
@@ -43,6 +54,7 @@ export function ProfilePage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
 
   const [cur, setCur] = useState("");
   const [nw, setNw] = useState("");
@@ -54,7 +66,12 @@ export function ProfilePage() {
   const [cRole, setCRole] = useState("viewer");
   const [cFirst, setCFirst] = useState("");
   const [cLast, setCLast] = useState("");
+  const [cMiddle, setCMiddle] = useState("");
   const [cEmail, setCEmail] = useState("");
+  const [cPhone, setCPhone] = useState("");
+  const [cJobTitle, setCJobTitle] = useState("");
+  const [cDepartmentCode, setCDepartmentCode] = useState("");
+  const [cIsActive, setCIsActive] = useState(true);
   const [cCounterpartyUuid, setCCounterpartyUuid] = useState("");
   const [counterparties, setCounterparties] = useState<CounterpartyRow[]>([]);
   const [createBusy, setCreateBusy] = useState(false);
@@ -71,9 +88,6 @@ export function ProfilePage() {
         api.fetch("/audit-logs?limit=50&entity_type=account"),
         api.fetch("/lookups/roles"),
       ];
-      if (isAdmin) {
-        reqs.push(api.fetch("/lookups/counterparties"));
-      }
       const [rCounterparties, rSessions, rAudit, rRoles] = await Promise.all(reqs.slice(0, 4));
       if (!rCounterparties.ok || !rSessions.ok || !rAudit.ok || !rRoles.ok) {
         throw new Error("profile_load_failed");
@@ -85,6 +99,15 @@ export function ProfilePage() {
       const roleRows = (await rRoles.json()) as RoleRow[];
       setRoles(roleRows);
       setCRole((prev) => (roleRows.some((x) => x.role_code === prev) ? prev : roleRows[0]?.role_code ?? "viewer"));
+
+      if (isAdmin) {
+        const rAccounts = await api.fetch("/admin/accounts?limit=500");
+        if (rAccounts.ok) {
+          setAccounts((await rAccounts.json()) as AccountRow[]);
+        } else {
+          setAccounts([]);
+        }
+      }
 
       if (account?.counterparty_uuid) {
         const found = cpRows.find((x) => x.uuid === account.counterparty_uuid);
@@ -164,7 +187,12 @@ export function ProfilePage() {
         role_code: cRole,
         first_name: cFirst.trim(),
         last_name: cLast.trim(),
+        middle_name: cMiddle.trim() || null,
         email: cEmail.trim() || null,
+        phone: cPhone.trim() || null,
+        job_title: cJobTitle.trim() || null,
+        department_code: cDepartmentCode.trim() || null,
+        is_active: cIsActive,
         counterparty_uuid: cCounterpartyUuid || null,
       }),
     });
@@ -176,7 +204,12 @@ export function ProfilePage() {
       setCPassword("");
       setCFirst("");
       setCLast("");
+      setCMiddle("");
       setCEmail("");
+      setCPhone("");
+      setCJobTitle("");
+      setCDepartmentCode("");
+      setCIsActive(true);
       setCCounterpartyUuid("");
       await loadProfileData();
     }
@@ -276,12 +309,49 @@ export function ProfilePage() {
               <div className="form-field"><label htmlFor="ap">Пароль</label><input id="ap" className="input" type="password" value={cPassword} onChange={(e) => setCPassword(e.target.value)} required minLength={8} /></div>
               <div className="form-field"><label htmlFor="af">Имя</label><input id="af" className="input" value={cFirst} onChange={(e) => setCFirst(e.target.value)} required /></div>
               <div className="form-field"><label htmlFor="aln">Фамилия</label><input id="aln" className="input" value={cLast} onChange={(e) => setCLast(e.target.value)} required /></div>
+              <div className="form-field"><label htmlFor="amn">Отчество</label><input id="amn" className="input" value={cMiddle} onChange={(e) => setCMiddle(e.target.value)} /></div>
               <div className="form-field"><label htmlFor="ar">Роль</label><select id="ar" className="input" value={cRole} onChange={(e) => setCRole(e.target.value)}>{roles.map((r) => <option key={r.role_code} value={r.role_code}>{r.role_code}</option>)}</select></div>
               <div className="form-field"><label htmlFor="ae">Email</label><input id="ae" className="input" type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} /></div>
+              <div className="form-field"><label htmlFor="aph">Телефон</label><input id="aph" className="input" value={cPhone} onChange={(e) => setCPhone(e.target.value)} /></div>
+              <div className="form-field"><label htmlFor="ajt">Должность</label><input id="ajt" className="input" value={cJobTitle} onChange={(e) => setCJobTitle(e.target.value)} /></div>
+              <div className="form-field"><label htmlFor="adc">Код подразделения</label><input id="adc" className="input" value={cDepartmentCode} onChange={(e) => setCDepartmentCode(e.target.value)} /></div>
               <div className="form-field"><label htmlFor="acp">Компания</label><select id="acp" className="input" value={cCounterpartyUuid} onChange={(e) => setCCounterpartyUuid(e.target.value)}><option value="">-</option>{counterparties.map((c) => <option key={c.uuid} value={c.uuid}>{c.name_ru}</option>)}</select></div>
+              <div className="form-field form-field--inline" style={{ alignSelf: "center" }}>
+                <label htmlFor="aactive">Активен</label>
+                <input id="aactive" type="checkbox" checked={cIsActive} onChange={(e) => setCIsActive(e.target.checked)} />
+              </div>
               <button type="submit" className="btn-primary" disabled={createBusy}>{createBusy ? "Создание..." : "Создать пользователя"}</button>
             </div>
           </form>
+          <div className="table-wrap" style={{ marginTop: 12 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Логин</th>
+                  <th>ФИО</th>
+                  <th>Роль</th>
+                  <th>Компания</th>
+                  <th>Активен</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((u) => {
+                  const company = u.counterparty_uuid
+                    ? counterparties.find((x) => x.uuid === u.counterparty_uuid)?.name_ru ?? "-"
+                    : "-";
+                  return (
+                    <tr key={u.uuid}>
+                      <td>{u.login}</td>
+                      <td>{u.last_name} {u.first_name}</td>
+                      <td>{u.role_code}</td>
+                      <td>{company}</td>
+                      <td>{u.is_active ? "да" : "нет"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 

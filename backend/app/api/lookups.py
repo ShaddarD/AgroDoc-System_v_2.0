@@ -2,12 +2,17 @@ import uuid as uuid_pkg
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_request_roles, require_admin_roles
 from app.db.session import get_db
 from app.models.counterparty import Counterparty
 from app.models.lookups import LookupFileType, LookupRoleCode, LookupSourceType, LookupStatusCode
+from app.models.power_of_attorney import PowerOfAttorney
+from app.models.product import Product
+from app.models.shipping_line import ShippingLine
+from app.models.terminal import Terminal
 from app.schemas.lookups import (
     CounterpartyCreateIn,
     CounterpartyOut,
@@ -16,6 +21,18 @@ from app.schemas.lookups import (
     LookupRoleCreate,
     LookupRoleOut,
     LookupStatusOut,
+    PowerOfAttorneyCreateIn,
+    PowerOfAttorneyOut,
+    PowerOfAttorneyPatchIn,
+    ProductCreateIn,
+    ProductOut,
+    ProductPatchIn,
+    ShippingLineCreateIn,
+    ShippingLineOut,
+    ShippingLinePatchIn,
+    TerminalCreateIn,
+    TerminalOut,
+    TerminalPatchIn,
 )
 from app.services.audit import write_audit
 
@@ -179,5 +196,433 @@ def delete_counterparty(
         entity_uuid=row.uuid,
         old_data=old_snapshot,
         new_data={"is_active": False, "status_code": "inactive"},
+    )
+    db.commit()
+
+
+@router.get("/shipping-lines", response_model=list[ShippingLineOut])
+def list_shipping_lines(db: Session = Depends(get_db)) -> list[ShippingLine]:
+    return list(db.scalars(select(ShippingLine).order_by(ShippingLine.code)).all())
+
+
+@router.post("/shipping-lines", response_model=ShippingLineOut, status_code=status.HTTP_201_CREATED)
+def create_shipping_line(
+    payload: ShippingLineCreateIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> ShippingLine:
+    require_admin_roles(roles)
+    row = ShippingLine(
+        code=payload.code.strip(),
+        name_ru=payload.name_ru.strip(),
+        name_en=payload.name_en.strip(),
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="shipping_line_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="shipping_line_create",
+        event_type="CREATE",
+        entity_type="shipping_line",
+        entity_uuid=row.uuid,
+        old_data=None,
+        new_data={"code": row.code, "name_ru": row.name_ru},
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/shipping-lines/{line_uuid}", response_model=ShippingLineOut)
+def patch_shipping_line(
+    line_uuid: uuid_pkg.UUID,
+    payload: ShippingLinePatchIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> ShippingLine:
+    require_admin_roles(roles)
+    row = db.get(ShippingLine, line_uuid)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="shipping_line_not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    old_data = {"code": row.code, "name_ru": row.name_ru, "name_en": row.name_en, "is_active": row.is_active}
+    for key, val in data.items():
+        if isinstance(val, str):
+            val = val.strip()
+        setattr(row, key, val)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="shipping_line_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="shipping_line_update",
+        event_type="UPDATE",
+        entity_type="shipping_line",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data=data,
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/shipping-lines/{line_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_shipping_line(
+    line_uuid: uuid_pkg.UUID,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> None:
+    require_admin_roles(roles)
+    row = db.get(ShippingLine, line_uuid)
+    if row is None:
+        return
+    old_data = {"code": row.code, "is_active": row.is_active}
+    row.is_active = False
+    write_audit(
+        db,
+        account_uuid=None,
+        action="shipping_line_delete",
+        event_type="DELETE",
+        entity_type="shipping_line",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data={"is_active": False},
+    )
+    db.commit()
+
+
+@router.get("/products", response_model=list[ProductOut])
+def list_products(db: Session = Depends(get_db)) -> list[Product]:
+    return list(db.scalars(select(Product).order_by(Product.product_code)).all())
+
+
+@router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
+def create_product(
+    payload: ProductCreateIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Product:
+    require_admin_roles(roles)
+    row = Product(
+        product_code=payload.product_code.strip(),
+        hs_code_tnved=payload.hs_code_tnved.strip(),
+        product_name_ru=payload.product_name_ru.strip(),
+        product_name_en=payload.product_name_en.strip() if payload.product_name_en else None,
+        botanical_name_latin=payload.botanical_name_latin.strip() if payload.botanical_name_latin else None,
+        regulatory_documents=payload.regulatory_documents.strip() if payload.regulatory_documents else None,
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="product_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="product_create",
+        event_type="CREATE",
+        entity_type="product",
+        entity_uuid=row.uuid,
+        old_data=None,
+        new_data={"product_code": row.product_code, "product_name_ru": row.product_name_ru},
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/products/{product_uuid}", response_model=ProductOut)
+def patch_product(
+    product_uuid: uuid_pkg.UUID,
+    payload: ProductPatchIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Product:
+    require_admin_roles(roles)
+    row = db.get(Product, product_uuid)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="product_not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    old_data = {
+        "product_code": row.product_code,
+        "hs_code_tnved": row.hs_code_tnved,
+        "product_name_ru": row.product_name_ru,
+        "is_active": row.is_active,
+    }
+    for key, val in data.items():
+        if isinstance(val, str):
+            val = val.strip()
+            if val == "":
+                val = None
+        setattr(row, key, val)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="product_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="product_update",
+        event_type="UPDATE",
+        entity_type="product",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data=data,
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/products/{product_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product(
+    product_uuid: uuid_pkg.UUID,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> None:
+    require_admin_roles(roles)
+    row = db.get(Product, product_uuid)
+    if row is None:
+        return
+    old_data = {"product_code": row.product_code, "is_active": row.is_active}
+    row.is_active = False
+    write_audit(
+        db,
+        account_uuid=None,
+        action="product_delete",
+        event_type="DELETE",
+        entity_type="product",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data={"is_active": False},
+    )
+    db.commit()
+
+
+@router.get("/terminals", response_model=list[TerminalOut])
+def list_terminals(db: Session = Depends(get_db)) -> list[Terminal]:
+    return list(db.scalars(select(Terminal).order_by(Terminal.terminal_code)).all())
+
+
+@router.post("/terminals", response_model=TerminalOut, status_code=status.HTTP_201_CREATED)
+def create_terminal(
+    payload: TerminalCreateIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Terminal:
+    require_admin_roles(roles)
+    row = Terminal(
+        terminal_code=payload.terminal_code.strip(),
+        terminal_name=payload.terminal_name.strip(),
+        owner_counterparty_uuid=payload.owner_counterparty_uuid,
+        address_ru=payload.address_ru.strip(),
+        address_en=payload.address_en.strip() if payload.address_en else None,
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="terminal_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="terminal_create",
+        event_type="CREATE",
+        entity_type="terminal",
+        entity_uuid=row.uuid,
+        old_data=None,
+        new_data={"terminal_code": row.terminal_code, "terminal_name": row.terminal_name},
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/terminals/{terminal_uuid}", response_model=TerminalOut)
+def patch_terminal(
+    terminal_uuid: uuid_pkg.UUID,
+    payload: TerminalPatchIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Terminal:
+    require_admin_roles(roles)
+    row = db.get(Terminal, terminal_uuid)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="terminal_not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    old_data = {
+        "terminal_code": row.terminal_code,
+        "terminal_name": row.terminal_name,
+        "owner_counterparty_uuid": str(row.owner_counterparty_uuid) if row.owner_counterparty_uuid else None,
+        "is_active": row.is_active,
+    }
+    for key, val in data.items():
+        if isinstance(val, str):
+            val = val.strip()
+            if val == "":
+                val = None
+        setattr(row, key, val)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="terminal_code_exists") from e
+    write_audit(
+        db,
+        account_uuid=None,
+        action="terminal_update",
+        event_type="UPDATE",
+        entity_type="terminal",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data=data,
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/terminals/{terminal_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_terminal(
+    terminal_uuid: uuid_pkg.UUID,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> None:
+    require_admin_roles(roles)
+    row = db.get(Terminal, terminal_uuid)
+    if row is None:
+        return
+    old_data = {"terminal_code": row.terminal_code, "is_active": row.is_active}
+    row.is_active = False
+    write_audit(
+        db,
+        account_uuid=None,
+        action="terminal_delete",
+        event_type="DELETE",
+        entity_type="terminal",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data={"is_active": False},
+    )
+    db.commit()
+
+
+@router.get("/powers-of-attorney", response_model=list[PowerOfAttorneyOut])
+def list_powers_of_attorney(db: Session = Depends(get_db)) -> list[PowerOfAttorney]:
+    return list(db.scalars(select(PowerOfAttorney).order_by(PowerOfAttorney.issue_date.desc())).all())
+
+
+@router.post("/powers-of-attorney", response_model=PowerOfAttorneyOut, status_code=status.HTTP_201_CREATED)
+def create_power_of_attorney(
+    payload: PowerOfAttorneyCreateIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> PowerOfAttorney:
+    require_admin_roles(roles)
+    row = PowerOfAttorney(
+        poa_number=payload.poa_number.strip(),
+        issue_date=payload.issue_date,
+        validity_years=payload.validity_years,
+        principal_counterparty_uuid=payload.principal_counterparty_uuid,
+        attorney_counterparty_uuid=payload.attorney_counterparty_uuid,
+        status_code=payload.status_code.strip(),
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    db.flush()
+    write_audit(
+        db,
+        account_uuid=None,
+        action="power_of_attorney_create",
+        event_type="CREATE",
+        entity_type="power_of_attorney",
+        entity_uuid=row.uuid,
+        old_data=None,
+        new_data={"poa_number": row.poa_number, "status_code": row.status_code},
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/powers-of-attorney/{poa_uuid}", response_model=PowerOfAttorneyOut)
+def patch_power_of_attorney(
+    poa_uuid: uuid_pkg.UUID,
+    payload: PowerOfAttorneyPatchIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> PowerOfAttorney:
+    require_admin_roles(roles)
+    row = db.get(PowerOfAttorney, poa_uuid)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="power_of_attorney_not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    old_data = {"poa_number": row.poa_number, "status_code": row.status_code, "is_active": row.is_active}
+    for key, val in data.items():
+        if isinstance(val, str):
+            val = val.strip()
+            if val == "":
+                val = None
+        setattr(row, key, val)
+    write_audit(
+        db,
+        account_uuid=None,
+        action="power_of_attorney_update",
+        event_type="UPDATE",
+        entity_type="power_of_attorney",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data=data,
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/powers-of-attorney/{poa_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_power_of_attorney(
+    poa_uuid: uuid_pkg.UUID,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> None:
+    require_admin_roles(roles)
+    row = db.get(PowerOfAttorney, poa_uuid)
+    if row is None:
+        return
+    old_data = {"poa_number": row.poa_number, "is_active": row.is_active}
+    row.is_active = False
+    row.status_code = "inactive"
+    write_audit(
+        db,
+        account_uuid=None,
+        action="power_of_attorney_delete",
+        event_type="DELETE",
+        entity_type="power_of_attorney",
+        entity_uuid=row.uuid,
+        old_data=old_data,
+        new_data={"is_active": False, "status_code": row.status_code},
     )
     db.commit()
