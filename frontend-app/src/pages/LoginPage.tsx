@@ -10,7 +10,9 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const nav = useNavigate();
   const loc = useLocation();
-  const from = (loc.state as { from?: string } | null)?.from ?? "/applications";
+  const state = loc.state as { from?: string; reason?: string } | null;
+  const from = state?.from && state.from.startsWith("/") ? state.from : "/applications";
+  const sessionExpired = state?.reason === "session_expired";
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -41,6 +43,7 @@ export function LoginPage() {
     <section className="card page form-page">
       <h1>Вход</h1>
       <p className="muted">Используйте учётную запись. Для проверки в dev есть сид (см. README backend).</p>
+      {sessionExpired ? <p className="form-error">Сессия истекла, войдите снова.</p> : null}
       <form className="form" onSubmit={onSubmit}>
         <div className="form-field">
           <label htmlFor="login">Логин</label>

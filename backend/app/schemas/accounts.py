@@ -12,6 +12,7 @@ class AccountListItem(BaseModel):
     role_code: str
     first_name: str
     last_name: str
+    counterparty_uuid: UUID | None
     email: str | None
     is_active: bool
     created_at: datetime
@@ -24,7 +25,11 @@ class AccountCreateIn(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     first_name: str = Field(..., min_length=1, max_length=100)
     middle_name: str | None = Field(None, max_length=100)
+    counterparty_uuid: UUID | None = None
+    phone: str | None = Field(None, max_length=32)
     email: str | None = Field(None, max_length=255)
+    job_title: str | None = Field(None, max_length=150)
+    department_code: str | None = Field(None, max_length=50)
 
 
 class AccountPatchIn(BaseModel):

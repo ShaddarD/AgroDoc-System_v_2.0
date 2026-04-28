@@ -186,3 +186,85 @@ select.input {
   margin-top: 12px;
   text-decoration: none;
 }
+
+.app-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-menu__toggle {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  cursor: pointer;
+  display: grid;
+  text-align: right;
+  min-width: 220px;
+}
+
+.profile-menu__name {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.profile-menu__company {
+  color: #68707a;
+  font-size: 0.82rem;
+}
+
+.profile-menu__dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.profile-menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: var(--color-text-main);
+  cursor: pointer;
+}
+
+.profile-menu__item:hover {
+  background: #f3f7f3;
+}
+
+.profile-menu__item--danger {
+  color: #b00020;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.profile-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: #fff;
+}
+
+.profile-panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}

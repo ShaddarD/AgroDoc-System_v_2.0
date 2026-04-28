@@ -9,7 +9,15 @@ export type Account = {
   role_code: string;
   first_name: string;
   last_name: string;
+  middle_name: string | null;
+  counterparty_uuid: string | null;
+  phone: string | null;
   email: string | null;
+  job_title: string | null;
+  department_code: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type LoginResult = {
@@ -29,6 +37,8 @@ function joinUrl(base: string, path: string): string {
 }
 
 export function createApiClient(getBase: () => string) {
+  let refreshPromise: Promise<boolean> | null = null;
+
   function getToken(): string | null {
     if (typeof sessionStorage === "undefined") {
       return null;
@@ -93,25 +103,39 @@ export function createApiClient(getBase: () => string) {
     return true;
   }
 
-  async function tryRefresh(): Promise<boolean> {
+  async function doRefresh(): Promise<boolean> {
     const rt = getRefreshToken();
     if (!rt) {
       return false;
     }
     const base = getBase();
     const url = joinUrl(base, "/auth/refresh");
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: rt }),
-    });
-    if (!r.ok) {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!r.ok) {
+        deleteToken();
+        return false;
+      }
+      const j = (await r.json()) as { access_token: string; refresh_token: string };
+      setTokens(j.access_token, j.refresh_token);
+      return true;
+    } catch {
       deleteToken();
       return false;
     }
-    const j = (await r.json()) as { access_token: string; refresh_token: string };
-    setTokens(j.access_token, j.refresh_token);
-    return true;
+  }
+
+  async function tryRefresh(): Promise<boolean> {
+    if (!refreshPromise) {
+      refreshPromise = doRefresh().finally(() => {
+        refreshPromise = null;
+      });
+    }
+    return refreshPromise;
   }
 
   async function fetchApi(path: string, init: RequestInit = {}, retried = false): Promise<Response> {
@@ -126,13 +150,12 @@ export function createApiClient(getBase: () => string) {
       headers.set("Content-Type", "application/json");
     }
     const res = await fetch(url, { ...init, headers });
-    if (
-      res.status === 401 &&
-      !retried &&
-      shouldTryRefreshOn401(path) &&
-      (await tryRefresh())
-    ) {
-      return fetchApi(path, init, true);
+    if (res.status === 401 && !retried && shouldTryRefreshOn401(path)) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        return fetchApi(path, init, true);
+      }
+      deleteToken();
     }
     return res;
   }

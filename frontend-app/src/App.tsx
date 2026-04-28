@@ -3,9 +3,10 @@ import { AppLayout } from "./components/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
-import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { LookupsPage } from "./pages/LookupsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 function ApplicationDetailRoute() {
   const { id } = useParams();
@@ -35,13 +36,22 @@ export function App() {
           }
         />
         <Route
-          path="password"
+          path="lookups"
           element={
             <RequireAuth>
-              <ChangePasswordPage />
+              <LookupsPage />
             </RequireAuth>
           }
         />
+        <Route
+          path="profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route path="password" element={<Navigate to="/profile" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -1,15 +1,49 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useSidebarCollapsed } from "../hooks/useSidebarCollapsed";
-import { IconHome, IconKey, IconList, IconLogOut } from "../../../shared-ui/src/NavIcons";
+import { IconBook, IconHome, IconKey, IconList, IconLogOut, IconUsers } from "../../../shared-ui/src/NavIcons";
+import { api } from "../lib/api";
+
+type Counterparty = { uuid: string; name_ru: string };
 
 export function AppLayout() {
   const { account, logout, loading, isAuthenticated } = useAuth();
   const nav = useNavigate();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [companyName, setCompanyName] = useState<string>("-");
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
     `app-sidebar__link${isActive ? " app-sidebar__link--active" : ""}`;
+
+  const fullName = useMemo(() => {
+    if (!account) return "";
+    return `${account.last_name} ${account.first_name}`.trim();
+  }, [account]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCompany() {
+      if (!account?.counterparty_uuid) {
+        setCompanyName("-");
+        return;
+      }
+      const r = await api.fetch("/lookups/counterparties");
+      if (!r.ok) {
+        setCompanyName("-");
+        return;
+      }
+      const rows = (await r.json()) as Counterparty[];
+      if (!cancelled) {
+        setCompanyName(rows.find((x) => x.uuid === account.counterparty_uuid)?.name_ru ?? "-");
+      }
+    }
+    void loadCompany();
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.counterparty_uuid]);
 
   return (
     <div className="app-shell">
@@ -47,12 +81,32 @@ export function AppLayout() {
             </span>
           </NavLink>
           {isAuthenticated ? (
-            <NavLink to="/password" className={navCls}>
+            <>
+              <NavLink to="/lookups" className={navCls}>
+                <span className="app-sidebar__link-inner">
+                  <span className="app-sidebar__icon">
+                    <IconBook />
+                  </span>
+                  <span className="app-sidebar__label">Справочники</span>
+                </span>
+              </NavLink>
+              <NavLink to="/profile" className={navCls}>
+                <span className="app-sidebar__link-inner">
+                  <span className="app-sidebar__icon">
+                    <IconUsers />
+                  </span>
+                  <span className="app-sidebar__label">Профиль</span>
+                </span>
+              </NavLink>
+            </>
+          ) : null}
+          {isAuthenticated ? (
+            <NavLink to="/profile" className={navCls}>
               <span className="app-sidebar__link-inner">
                 <span className="app-sidebar__icon">
                   <IconKey />
                 </span>
-                <span className="app-sidebar__label">Смена пароля</span>
+                <span className="app-sidebar__label">Безопасность</span>
               </span>
             </NavLink>
           ) : null}
@@ -102,6 +156,42 @@ export function AppLayout() {
         </div>
       </aside>
       <div className="app-shell__content">
+        <header className="app-topbar">
+          {isAuthenticated && account ? (
+            <div className="profile-menu">
+              <button type="button" className="profile-menu__toggle" onClick={() => setMenuOpen((x) => !x)}>
+                <span className="profile-menu__name">{fullName}</span>
+                <span className="profile-menu__company">{companyName}</span>
+              </button>
+              {menuOpen ? (
+                <div className="profile-menu__dropdown">
+                  <NavLink to="/profile" className="profile-menu__item" onClick={() => setMenuOpen(false)}>
+                    Профиль
+                  </NavLink>
+                  <NavLink to="/profile" className="profile-menu__item" onClick={() => setMenuOpen(false)}>
+                    Безопасность
+                  </NavLink>
+                  <NavLink to="/lookups" className="profile-menu__item" onClick={() => setMenuOpen(false)}>
+                    Справочники
+                  </NavLink>
+                  <button
+                    type="button"
+                    className="profile-menu__item profile-menu__item--danger"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void (async () => {
+                        await logout();
+                        nav("/");
+                      })();
+                    }}
+                  >
+                    Выйти
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </header>
         <main className="app-shell__main">
           <Outlet />
         </main>

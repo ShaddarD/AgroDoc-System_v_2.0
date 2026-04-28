@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_account
@@ -16,7 +16,9 @@ from app.schemas.auth import (
     AccountOut,
     ChangePasswordRequest,
     LogoutRequest,
+    RefreshSessionOut,
     RefreshTokenRequest,
+    RevokeSessionRequest,
     TokenLoginRequest,
     TokenOut,
 )
@@ -162,3 +164,50 @@ def me(
     account: Account = Depends(get_current_account),
 ) -> Account:
     return account
+
+
+@router.get("/sessions", response_model=list[RefreshSessionOut])
+def list_sessions(
+    db: Session = Depends(get_db),
+    account: Account = Depends(get_current_account),
+) -> list[AuthRefreshSession]:
+    return list(
+        db.scalars(
+            select(AuthRefreshSession)
+            .where(AuthRefreshSession.account_uuid == account.uuid)
+            .order_by(AuthRefreshSession.created_at.desc())
+            .limit(200)
+        ).all()
+    )
+
+
+@router.post("/sessions/revoke", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_session(
+    payload: RevokeSessionRequest,
+    db: Session = Depends(get_db),
+    account: Account = Depends(get_current_account),
+) -> None:
+    sess = db.get(AuthRefreshSession, payload.jti)
+    if sess is None or sess.account_uuid != account.uuid:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    if sess.revoked_at is None:
+        sess.revoked_at = datetime.now(UTC)
+        db.commit()
+
+
+@router.post("/sessions/revoke-others", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_other_sessions(
+    payload: RevokeSessionRequest,
+    db: Session = Depends(get_db),
+    account: Account = Depends(get_current_account),
+) -> None:
+    db.execute(
+        update(AuthRefreshSession)
+        .where(
+            AuthRefreshSession.account_uuid == account.uuid,
+            AuthRefreshSession.jti != payload.jti,
+            AuthRefreshSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(UTC))
+    )
+    db.commit()

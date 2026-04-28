@@ -17,6 +17,10 @@ class LogoutRequest(BaseModel):
     refresh_token: str = Field(..., min_length=10, max_length=4000)
 
 
+class RevokeSessionRequest(BaseModel):
+    jti: UUID
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=200)
     new_password: str = Field(..., min_length=8, max_length=200)
@@ -31,7 +35,11 @@ class AccountOut(BaseModel):
     last_name: str
     first_name: str
     middle_name: str | None
+    counterparty_uuid: UUID | None
+    phone: str | None
     email: str | None
+    job_title: str | None
+    department_code: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -44,3 +52,13 @@ class TokenOut(BaseModel):
     expires_in: int
     refresh_expires_in: int
     account: AccountOut
+
+
+class RefreshSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    jti: UUID
+    account_uuid: UUID
+    expires_at: datetime
+    revoked_at: datetime | None
+    created_at: datetime

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_account, require_non_empty_role_or_token
 from app.db.session import get_db
 from app.models.account import Account
+from app.models.counterparty import Counterparty
 from app.models.lookups import LookupRoleCode
 from app.schemas.accounts import AccountCreateIn, AccountListItem, AccountPatchIn, AdminSetPasswordIn
 from app.core.security import hash_password
@@ -24,6 +25,10 @@ def _require_admin(actor: Account) -> None:
 
 def _role_exists(db: Session, role_code: str) -> bool:
     return db.get(LookupRoleCode, role_code) is not None
+
+
+def _counterparty_exists(db: Session, counterparty_uuid: uuid.UUID) -> bool:
+    return db.get(Counterparty, counterparty_uuid) is not None
 
 
 @router.get("/accounts", response_model=list[AccountListItem])
@@ -49,6 +54,8 @@ def create_account(
     _require_admin(actor)
     if not _role_exists(db, payload.role_code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unknown_role_code")
+    if payload.counterparty_uuid and not _counterparty_exists(db, payload.counterparty_uuid):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unknown_counterparty")
     row = Account(
         login=payload.login.strip(),
         password_hash=hash_password(payload.password),
@@ -56,7 +63,11 @@ def create_account(
         last_name=payload.last_name.strip(),
         first_name=payload.first_name.strip(),
         middle_name=payload.middle_name.strip() if payload.middle_name else None,
+        counterparty_uuid=payload.counterparty_uuid,
+        phone=payload.phone.strip() if payload.phone else None,
         email=payload.email.strip() if payload.email else None,
+        job_title=payload.job_title.strip() if payload.job_title else None,
+        department_code=payload.department_code.strip() if payload.department_code else None,
         is_active=True,
     )
     db.add(row)
@@ -75,7 +86,11 @@ def create_account(
         entity_type="account",
         entity_uuid=row.uuid,
         old_data=None,
-        new_data={"login": row.login, "role_code": row.role_code},
+        new_data={
+            "login": row.login,
+            "role_code": row.role_code,
+            "counterparty_uuid": str(row.counterparty_uuid) if row.counterparty_uuid else None,
+        },
     )
     db.commit()
     db.refresh(row)

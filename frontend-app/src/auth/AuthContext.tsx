@@ -18,15 +18,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const clearSession = useCallback((nextError: string | null = null) => {
+    api.deleteToken();
+    setAccount(null);
+    setError(nextError);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!api.getToken() && !api.getRefreshToken()) {
-      setAccount(null);
+      clearSession(null);
       return;
     }
-    const me = await api.getMe();
-    setAccount(me);
-  }, []);
+    try {
+      const me = await api.getMe();
+      if (!me) {
+        clearSession("session_expired");
+        return;
+      }
+      setAccount(me);
+      setError(null);
+    } catch (e) {
+      clearSession(e instanceof Error ? e.message : "auth_refresh_failed");
+      throw e;
+    }
+  }, [clearSession]);
 
   useEffect(() => {
     let c = false;
@@ -36,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await refresh();
       } catch (e) {
         if (!c) {
-          setAccount(null);
           setError(e instanceof Error ? e.message : "auth_refresh_failed");
         }
       } finally {
@@ -56,18 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await api.login(l, p);
       api.setTokens(data.access_token, data.refresh_token);
       setAccount(data.account);
+      setError(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "login_failed";
-      throw new Error(msg);
+      clearSession(e instanceof Error ? e.message : "login_failed");
+      throw e instanceof Error ? e : new Error("login_failed");
     }
-  }, []);
+  }, [clearSession]);
 
   const logout = useCallback(async () => {
     await api.logoutRemote();
-    api.deleteToken();
-    setAccount(null);
-    setError(null);
-  }, []);
+    clearSession(null);
+  }, [clearSession]);
 
   const value = useMemo(
     () => ({

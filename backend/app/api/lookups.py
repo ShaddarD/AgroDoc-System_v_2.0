@@ -6,8 +6,17 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_request_roles, require_admin_roles
 from app.db.session import get_db
+from app.models.counterparty import Counterparty
 from app.models.lookups import LookupFileType, LookupRoleCode, LookupSourceType, LookupStatusCode
-from app.schemas.lookups import LookupCodeOut, LookupRoleCreate, LookupRoleOut, LookupStatusOut
+from app.schemas.lookups import (
+    CounterpartyCreateIn,
+    CounterpartyOut,
+    CounterpartyPatchIn,
+    LookupCodeOut,
+    LookupRoleCreate,
+    LookupRoleOut,
+    LookupStatusOut,
+)
 from app.services.audit import write_audit
 
 router = APIRouter(prefix="/lookups", tags=["lookups"])
@@ -63,3 +72,112 @@ def create_role(
     db.commit()
     db.refresh(row)
     return row
+
+
+@router.get("/counterparties", response_model=list[CounterpartyOut])
+def list_counterparties(db: Session = Depends(get_db)) -> list[Counterparty]:
+    return list(db.scalars(select(Counterparty).order_by(Counterparty.name_ru)).all())
+
+
+@router.post("/counterparties", response_model=CounterpartyOut, status_code=status.HTTP_201_CREATED)
+def create_counterparty(
+    payload: CounterpartyCreateIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Counterparty:
+    require_admin_roles(roles)
+    row = Counterparty(
+        name_ru=payload.name_ru.strip(),
+        name_en=payload.name_en.strip() if payload.name_en else None,
+        inn=payload.inn.strip() if payload.inn else None,
+        kpp=payload.kpp.strip() if payload.kpp else None,
+        ogrn=payload.ogrn.strip() if payload.ogrn else None,
+        legal_address_ru=payload.legal_address_ru.strip() if payload.legal_address_ru else None,
+        actual_address_ru=payload.actual_address_ru.strip() if payload.actual_address_ru else None,
+        legal_address_en=payload.legal_address_en.strip() if payload.legal_address_en else None,
+        actual_address_en=payload.actual_address_en.strip() if payload.actual_address_en else None,
+        status_code=payload.status_code.strip(),
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    db.flush()
+    write_audit(
+        db,
+        account_uuid=None,
+        action="counterparty_create",
+        event_type="CREATE",
+        entity_type="counterparty",
+        entity_uuid=row.uuid,
+        old_data=None,
+        new_data={"name_ru": row.name_ru, "inn": row.inn, "is_active": row.is_active},
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/counterparties/{counterparty_uuid}", response_model=CounterpartyOut)
+def patch_counterparty(
+    counterparty_uuid: uuid_pkg.UUID,
+    payload: CounterpartyPatchIn,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> Counterparty:
+    require_admin_roles(roles)
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    row = db.get(Counterparty, counterparty_uuid)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="counterparty_not_found")
+    old_snapshot = {
+        "name_ru": row.name_ru,
+        "inn": row.inn,
+        "is_active": row.is_active,
+        "status_code": row.status_code,
+    }
+    for key, val in data.items():
+        if isinstance(val, str):
+            val = val.strip()
+            if val == "":
+                val = None
+        setattr(row, key, val)
+    write_audit(
+        db,
+        account_uuid=None,
+        action="counterparty_update",
+        event_type="UPDATE",
+        entity_type="counterparty",
+        entity_uuid=row.uuid,
+        old_data=old_snapshot,
+        new_data=data,
+    )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/counterparties/{counterparty_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_counterparty(
+    counterparty_uuid: uuid_pkg.UUID,
+    db: Session = Depends(get_db),
+    roles: list[str] = Depends(get_request_roles),
+) -> None:
+    require_admin_roles(roles)
+    row = db.get(Counterparty, counterparty_uuid)
+    if row is None:
+        return
+    old_snapshot = {"name_ru": row.name_ru, "inn": row.inn, "is_active": row.is_active}
+    row.is_active = False
+    row.status_code = "inactive"
+    write_audit(
+        db,
+        account_uuid=None,
+        action="counterparty_delete",
+        event_type="DELETE",
+        entity_type="counterparty",
+        entity_uuid=row.uuid,
+        old_data=old_snapshot,
+        new_data={"is_active": False, "status_code": "inactive"},
+    )
+    db.commit()
