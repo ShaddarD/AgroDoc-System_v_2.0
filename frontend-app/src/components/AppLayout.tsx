@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { IconBook, IconHome, IconKey, IconList, IconLogOut, IconUsers } from "../../../shared-ui/src/NavIcons";
@@ -13,6 +13,8 @@ export function AppLayout() {
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const [menuOpen, setMenuOpen] = useState(false);
   const [companyName, setCompanyName] = useState<string>("-");
+  const [brandVisible, setBrandVisible] = useState(true);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
     `app-sidebar__link${isActive ? " app-sidebar__link--active" : ""}`;
@@ -48,6 +50,27 @@ export function AppLayout() {
     };
   }, [account?.counterparty_uuid]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (profileMenuRef.current && target && !profileMenuRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [menuOpen]);
+
   return (
     <div className="app-shell">
       <aside
@@ -55,7 +78,18 @@ export function AppLayout() {
         aria-label="Основная навигация"
       >
         <div className="app-sidebar__head">
-          <span className="app-sidebar__brand">AgroDoc</span>
+          <span className="app-sidebar__brand" title="AgroDoc">
+            {brandVisible ? (
+              <img
+                src="/branding/logo-primary.png"
+                alt="AgroDoc"
+                className="app-sidebar__brand-logo"
+                onError={() => setBrandVisible(false)}
+              />
+            ) : (
+              "AgroDoc"
+            )}
+          </span>
           <button
             type="button"
             className="app-sidebar__toggle"
@@ -161,8 +195,8 @@ export function AppLayout() {
       <div className="app-shell__content">
         <header className="app-topbar">
           {isAuthenticated && account ? (
-            <div className="profile-menu">
-              <button type="button" className="profile-menu__toggle" onClick={() => setMenuOpen((x) => !x)}>
+            <div className="profile-menu" ref={profileMenuRef}>
+              <button type="button" className="profile-menu__toggle" title="Открыть меню профиля" onClick={() => setMenuOpen((x) => !x)}>
                 <span className="profile-menu__name">{fullName}</span>
                 <span className="profile-menu__company">{companyName}</span>
               </button>

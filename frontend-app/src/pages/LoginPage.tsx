@@ -8,6 +8,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [logoVisible, setLogoVisible] = useState(true);
   const nav = useNavigate();
   const loc = useLocation();
   const state = loc.state as { from?: string; reason?: string } | null;
@@ -48,6 +49,16 @@ export function LoginPage() {
   return (
     <div className="auth-shell">
     <section className="card page form-page">
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+        {logoVisible ? (
+          <img
+            src="/branding/logo-primary.png"
+            alt="AgroDoc"
+            style={{ width: "min(220px, 100%)", height: 48, objectFit: "contain" }}
+            onError={() => setLogoVisible(false)}
+          />
+        ) : null}
+      </div>
       <h1>Вход</h1>
       <p className="muted">Используйте учётную запись. Для проверки в dev есть сид (см. README backend).</p>
       {sessionExpired ? <p className="form-error">Сессия истекла, войдите снова.</p> : null}

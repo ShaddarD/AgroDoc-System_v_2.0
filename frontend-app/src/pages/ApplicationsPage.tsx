@@ -68,7 +68,7 @@ export function ApplicationsPage() {
     <section className="card page page-wide">
       <h1>Заявки</h1>
       <p>
-        <button type="button" className="btn-primary" onClick={() => nav("/applications/new")}>
+        <button type="button" className="btn-primary" title="Открыть форму новой заявки" onClick={() => nav("/applications/new")}>
           Создать заявку
         </button>
       </p>
@@ -131,7 +131,7 @@ export function ApplicationsPage() {
                     <td>{row.source_type}</td>
                     <td>{new Date(row.created_at).toLocaleString()}</td>
                     <td>
-                      <Link to={`/applications/${row.uuid}`} className="nav-link">
+                      <Link to={`/applications/${row.uuid}`} className="nav-link" title="Открыть карточку заявки">
                         Открыть
                       </Link>
                     </td>
@@ -144,7 +144,7 @@ export function ApplicationsPage() {
       )}
       {total > pageSize ? (
         <p className="form-footer">
-          <button type="button" className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button type="button" className="btn-ghost" title="Предыдущая страница" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
             Назад
           </button>
           <span className="muted" style={{ margin: "0 8px" }}>
@@ -153,6 +153,7 @@ export function ApplicationsPage() {
           <button
             type="button"
             className="btn-ghost"
+            title="Следующая страница"
             disabled={page * pageSize >= total}
             onClick={() => setPage((p) => p + 1)}
           >

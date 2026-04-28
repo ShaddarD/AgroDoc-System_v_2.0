@@ -36,6 +36,14 @@
   white-space: nowrap;
 }
 
+.app-sidebar__brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 150px;
+  height: 40px;
+  object-fit: contain;
+}
+
 .app-sidebar__toggle {
   flex-shrink: 0;
   display: flex;

@@ -145,7 +145,6 @@ class TerminalOut(BaseModel):
     uuid: UUID
     terminal_code: str
     terminal_name: str
-    owner_counterparty_uuid: UUID | None
     address_ru: str
     address_en: str | None
     is_active: bool
@@ -154,7 +153,6 @@ class TerminalOut(BaseModel):
 class TerminalCreateIn(BaseModel):
     terminal_code: str = Field(..., min_length=1, max_length=50)
     terminal_name: str = Field(..., min_length=1, max_length=255)
-    owner_counterparty_uuid: UUID | None = None
     address_ru: str = Field(..., min_length=1)
     address_en: str | None = None
     is_active: bool = True
@@ -165,7 +163,6 @@ class TerminalPatchIn(BaseModel):
 
     terminal_code: str | None = Field(None, min_length=1, max_length=50)
     terminal_name: str | None = Field(None, min_length=1, max_length=255)
-    owner_counterparty_uuid: UUID | None = None
     address_ru: str | None = Field(None, min_length=1)
     address_en: str | None = None
     is_active: bool | None = None

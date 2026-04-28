@@ -274,7 +274,7 @@ export function ApplicationDetailPage() {
     return (
       <section className="card page page-wide">
         <p className="form-error">{error}</p>
-        <Link to="/applications" className="nav-link">
+        <Link to="/applications" className="nav-link" title="Вернуться к списку заявок">
           К списку
         </Link>
       </section>
@@ -294,7 +294,7 @@ export function ApplicationDetailPage() {
   return (
     <section className="card page page-wide">
       <p>
-        <Link to="/applications" className="nav-link">
+        <Link to="/applications" className="nav-link" title="Вернуться к списку заявок">
           ← к списку
         </Link>
       </p>
@@ -354,7 +354,7 @@ export function ApplicationDetailPage() {
             <label htmlFor="cm">Комментарий</label>
             <input id="cm" className="input" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
-          <button type="submit" className="btn-primary" disabled={saving || !newStatus}>
+          <button type="submit" className="btn-primary" title="Применить выбранный статус" disabled={saving || !newStatus}>
             {saving ? "…" : "Применить"}
           </button>
         </form>
@@ -362,13 +362,13 @@ export function ApplicationDetailPage() {
       </section>
 
       <div className="tabs" style={{ marginTop: 20 }}>
-        <button type="button" className={tab === "revisions" ? "tab tab--on" : "tab"} onClick={() => setTab("revisions")}>
+        <button type="button" title="Открыть список ревизий" className={tab === "revisions" ? "tab tab--on" : "tab"} onClick={() => setTab("revisions")}>
           Ревизии
         </button>
-        <button type="button" className={tab === "audit" ? "tab tab--on" : "tab"} onClick={() => setTab("audit")}>
+        <button type="button" title="Открыть аудит заявки" className={tab === "audit" ? "tab tab--on" : "tab"} onClick={() => setTab("audit")}>
           Аудит
         </button>
-        <button type="button" className={tab === "files" ? "tab tab--on" : "tab"} onClick={() => setTab("files")}>
+        <button type="button" title="Открыть вложенные файлы" className={tab === "files" ? "tab tab--on" : "tab"} onClick={() => setTab("files")}>
           Файлы
         </button>
       </div>
@@ -402,7 +402,7 @@ export function ApplicationDetailPage() {
                           </td>
                           <td>
                             {r.version > 1 ? (
-                              <button type="button" className="btn-ghost" onClick={() => void toggleDiffRow(r)}>
+                              <button type="button" title="Показать сравнение с предыдущей ревизией" className="btn-ghost" onClick={() => void toggleDiffRow(r)}>
                                 {open ? "Скрыть" : "Показать"}
                               </button>
                             ) : (
@@ -432,7 +432,7 @@ export function ApplicationDetailPage() {
                 </tbody>
               </table>
               <div className="pager">
-                <button type="button" className="btn-ghost" disabled={revPage <= 1} onClick={() => setRevPage((p) => p - 1)}>
+                <button type="button" className="btn-ghost" title="Предыдущая страница ревизий" disabled={revPage <= 1} onClick={() => setRevPage((p) => p - 1)}>
                   Назад
                 </button>
                 <span className="muted">
@@ -441,6 +441,7 @@ export function ApplicationDetailPage() {
                 <button
                   type="button"
                   className="btn-ghost"
+                  title="Следующая страница ревизий"
                   disabled={revPage >= revPages}
                   onClick={() => setRevPage((p) => p + 1)}
                 >
@@ -488,6 +489,7 @@ export function ApplicationDetailPage() {
                 <button
                   type="button"
                   className="btn-ghost"
+                  title="Предыдущая страница аудита"
                   disabled={auditPage <= 1}
                   onClick={() => setAuditPage((p) => p - 1)}
                 >
@@ -499,6 +501,7 @@ export function ApplicationDetailPage() {
                 <button
                   type="button"
                   className="btn-ghost"
+                  title="Следующая страница аудита"
                   disabled={auditPage >= auditPages}
                   onClick={() => setAuditPage((p) => p + 1)}
                 >
@@ -528,7 +531,7 @@ export function ApplicationDetailPage() {
               <label htmlFor="ff">Файл</label>
               <input id="ff" type="file" onChange={(e) => setUpFile(e.target.files?.[0] ?? null)} />
             </div>
-            <button type="submit" className="btn-primary" disabled={upBusy || !upFile || !upType}>
+            <button type="submit" title="Загрузить выбранный файл" className="btn-primary" disabled={upBusy || !upFile || !upType}>
               {upBusy ? "…" : "Загрузить"}
             </button>
           </form>
@@ -556,6 +559,7 @@ export function ApplicationDetailPage() {
                         <button
                           type="button"
                           className="nav-link"
+                          title="Скачать файл"
                           onClick={async () => {
                             try {
                               await downloadFileByUuid(f.uuid, f.file_name);

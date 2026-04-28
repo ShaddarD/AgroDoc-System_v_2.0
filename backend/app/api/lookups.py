@@ -431,7 +431,6 @@ def create_terminal(
     row = Terminal(
         terminal_code=payload.terminal_code.strip(),
         terminal_name=payload.terminal_name.strip(),
-        owner_counterparty_uuid=payload.owner_counterparty_uuid,
         address_ru=payload.address_ru.strip(),
         address_en=payload.address_en.strip() if payload.address_en else None,
         is_active=payload.is_active,
@@ -474,7 +473,6 @@ def patch_terminal(
     old_data = {
         "terminal_code": row.terminal_code,
         "terminal_name": row.terminal_name,
-        "owner_counterparty_uuid": str(row.owner_counterparty_uuid) if row.owner_counterparty_uuid else None,
         "is_active": row.is_active,
     }
     for key, val in data.items():

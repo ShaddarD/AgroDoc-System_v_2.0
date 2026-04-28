@@ -26,7 +26,6 @@ type TerminalRow = {
   uuid: string;
   terminal_code: string;
   terminal_name: string;
-  owner_counterparty_uuid: string | null;
   address_ru: string;
   address_en: string | null;
   is_active: boolean;
@@ -115,7 +114,6 @@ export function LookupsPage() {
   const [tEditId, setTEditId] = useState<string | null>(null);
   const [tCode, setTCode] = useState("");
   const [tName, setTName] = useState("");
-  const [tOwner, setTOwner] = useState("");
   const [tAddressRu, setTAddressRu] = useState("");
   const [tAddressEn, setTAddressEn] = useState("");
   const [tIsActive, setTIsActive] = useState(true);
@@ -313,7 +311,6 @@ export function LookupsPage() {
     const payload = {
       terminal_code: tCode.trim(),
       terminal_name: tName.trim(),
-      owner_counterparty_uuid: tOwner || null,
       address_ru: tAddressRu.trim(),
       address_en: tAddressEn.trim() || null,
       is_active: tIsActive,
@@ -329,7 +326,6 @@ export function LookupsPage() {
     setTEditId(null);
     setTCode("");
     setTName("");
-    setTOwner("");
     setTAddressRu("");
     setTAddressEn("");
     setTIsActive(true);
@@ -393,31 +389,31 @@ export function LookupsPage() {
       <h1>Справочники</h1>
       <p className="muted">Данные справочников и контрагентов. CRUD доступен только администратору.</p>
       <div className="tabs">
-        <button type="button" className={`tab ${tab === "counterparties" ? "tab--on" : ""}`} onClick={() => setTab("counterparties")}>
+        <button type="button" title="Открыть справочник контрагентов" className={`tab ${tab === "counterparties" ? "tab--on" : ""}`} onClick={() => setTab("counterparties")}>
           Контрагенты
         </button>
-        <button type="button" className={`tab ${tab === "roles" ? "tab--on" : ""}`} onClick={() => setTab("roles")}>
+        <button type="button" title="Открыть справочник ролей" className={`tab ${tab === "roles" ? "tab--on" : ""}`} onClick={() => setTab("roles")}>
           Роли
         </button>
-        <button type="button" className={`tab ${tab === "statuses" ? "tab--on" : ""}`} onClick={() => setTab("statuses")}>
+        <button type="button" title="Открыть справочник статусов" className={`tab ${tab === "statuses" ? "tab--on" : ""}`} onClick={() => setTab("statuses")}>
           Статусы
         </button>
-        <button type="button" className={`tab ${tab === "source" ? "tab--on" : ""}`} onClick={() => setTab("source")}>
+        <button type="button" title="Открыть типы источников" className={`tab ${tab === "source" ? "tab--on" : ""}`} onClick={() => setTab("source")}>
           Источники
         </button>
-        <button type="button" className={`tab ${tab === "files" ? "tab--on" : ""}`} onClick={() => setTab("files")}>
+        <button type="button" title="Открыть типы файлов" className={`tab ${tab === "files" ? "tab--on" : ""}`} onClick={() => setTab("files")}>
           Типы файлов
         </button>
-        <button type="button" className={`tab ${tab === "shipping-lines" ? "tab--on" : ""}`} onClick={() => setTab("shipping-lines")}>
+        <button type="button" title="Открыть линии перевозки" className={`tab ${tab === "shipping-lines" ? "tab--on" : ""}`} onClick={() => setTab("shipping-lines")}>
           Линии перевозки
         </button>
-        <button type="button" className={`tab ${tab === "products" ? "tab--on" : ""}`} onClick={() => setTab("products")}>
+        <button type="button" title="Открыть справочник продуктов" className={`tab ${tab === "products" ? "tab--on" : ""}`} onClick={() => setTab("products")}>
           Продукты
         </button>
-        <button type="button" className={`tab ${tab === "terminals" ? "tab--on" : ""}`} onClick={() => setTab("terminals")}>
+        <button type="button" title="Открыть справочник терминалов" className={`tab ${tab === "terminals" ? "tab--on" : ""}`} onClick={() => setTab("terminals")}>
           Терминалы
         </button>
-        <button type="button" className={`tab ${tab === "powers-of-attorney" ? "tab--on" : ""}`} onClick={() => setTab("powers-of-attorney")}>
+        <button type="button" title="Открыть справочник доверенностей" className={`tab ${tab === "powers-of-attorney" ? "tab--on" : ""}`} onClick={() => setTab("powers-of-attorney")}>
           Доверенности
         </button>
       </div>
@@ -589,7 +585,6 @@ export function LookupsPage() {
               <div className="filters">
                 <div className="form-field"><label>Код терминала</label><input className="input" value={tCode} onChange={(e) => setTCode(e.target.value)} required /></div>
                 <div className="form-field"><label>Название</label><input className="input" value={tName} onChange={(e) => setTName(e.target.value)} required /></div>
-                <div className="form-field"><label>Владелец (контрагент)</label><select className="input" value={tOwner} onChange={(e) => setTOwner(e.target.value)}><option value="">-</option>{counterparties.map((c) => <option key={c.uuid} value={c.uuid}>{c.name_ru}</option>)}</select></div>
                 <div className="form-field" style={{ flex: "1 1 360px" }}><label>Адрес RU</label><input className="input" value={tAddressRu} onChange={(e) => setTAddressRu(e.target.value)} required /></div>
                 <div className="form-field" style={{ flex: "1 1 360px" }}><label>Адрес EN</label><input className="input" value={tAddressEn} onChange={(e) => setTAddressEn(e.target.value)} /></div>
                 <div className="form-field form-field--inline"><label>Активен</label><input type="checkbox" checked={tIsActive} onChange={(e) => setTIsActive(e.target.checked)} /></div>
@@ -597,7 +592,7 @@ export function LookupsPage() {
               </div>
             </form>
           ) : null}
-          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>Название</th><th>Адрес RU</th><th>Активен</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{terminals.map((r) => <tr key={r.uuid}><td>{r.terminal_code}</td><td>{r.terminal_name}</td><td>{r.address_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setTEditId(r.uuid); setTCode(r.terminal_code); setTName(r.terminal_name); setTOwner(r.owner_counterparty_uuid || ""); setTAddressRu(r.address_ru); setTAddressEn(r.address_en || ""); setTIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeTerminal(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>Название</th><th>Адрес RU</th><th>Активен</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{terminals.map((r) => <tr key={r.uuid}><td>{r.terminal_code}</td><td>{r.terminal_name}</td><td>{r.address_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setTEditId(r.uuid); setTCode(r.terminal_code); setTName(r.terminal_name); setTAddressRu(r.address_ru); setTAddressEn(r.address_en || ""); setTIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeTerminal(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
         </>
       ) : null}
       {!loading && tab === "powers-of-attorney" ? (

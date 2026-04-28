@@ -3,6 +3,24 @@
   text-decoration: none;
 }
 
+.action-btn {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text-main);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.action-btn:hover {
+  background: #eef5ee;
+}
+
+.action-btn--danger {
+  color: #b00020;
+}
+
 .nav-link--active {
   color: var(--color-primary);
   font-weight: 600;
@@ -63,6 +81,22 @@
   gap: 8px;
 }
 
+.switch-field {
+  gap: 10px;
+}
+
+.switch-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.form-field--inline input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
 .input {
   padding: 8px 10px;
   border: 1px solid var(--color-border);
@@ -120,6 +154,19 @@ select.input {
   margin-top: 12px;
 }
 
+.table-wrap .nav-link {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text-main);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  display: inline-block;
+}
+
+.table-wrap .nav-link:hover {
+  background: #eef5ee;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -160,8 +207,10 @@ select.input {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0 8px 0;
+  max-width: 100%;
 }
 
 .tab {
@@ -171,6 +220,8 @@ select.input {
   border-radius: var(--radius-md);
   cursor: pointer;
   font: inherit;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .tab--on {
@@ -283,6 +334,36 @@ select.input {
   font-size: 1.05rem;
 }
 
+.app-create-page h1 {
+  margin-bottom: 4px;
+}
+
+.app-create-form {
+  gap: 16px;
+}
+
+.app-create-form__section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 14px;
+}
+
+.app-create-form__section h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.app-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 12px 16px;
+}
+
+.app-create-grid__full {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 900px) {
   .page,
   .page-wide {
@@ -303,5 +384,9 @@ select.input {
     right: auto;
     left: 0;
     width: min(100vw - 32px, 320px);
+  }
+
+  .app-create-grid {
+    grid-template-columns: 1fr;
   }
 }

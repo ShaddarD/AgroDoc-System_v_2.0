@@ -259,7 +259,7 @@ export function ProfilePage() {
               <label htmlFor="newp2">Повтор нового пароля</label>
               <input id="newp2" type="password" className="input" value={nw2} onChange={(e) => setNw2(e.target.value)} required minLength={8} />
             </div>
-            <button type="submit" className="btn-primary" disabled={pwdBusy}>{pwdBusy ? "Сохранение..." : "Сменить пароль"}</button>
+            <button type="submit" title="Сохранить новый пароль" className="btn-primary" disabled={pwdBusy}>{pwdBusy ? "Сохранение..." : "Сменить пароль"}</button>
           </form>
         </section>
       </div>
@@ -267,7 +267,7 @@ export function ProfilePage() {
       <section className="profile-panel" style={{ marginTop: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2>Активные сессии</h2>
-          <button type="button" className="btn-ghost" onClick={() => void revokeOtherSessions()}>Завершить все кроме текущей</button>
+          <button type="button" title="Завершить все сессии, кроме текущей" className="btn-ghost" onClick={() => void revokeOtherSessions()}>Завершить все кроме текущей</button>
         </div>
         <div className="table-wrap">
           <table className="data-table">
@@ -289,7 +289,7 @@ export function ProfilePage() {
                     <td>{s.revoked_at ? "Отозвана" : isCurrent ? "Текущая" : "Активна"}</td>
                     <td>
                       {!s.revoked_at && !isCurrent ? (
-                        <button type="button" className="nav-link" onClick={() => void revokeSession(s.jti)}>Завершить</button>
+                        <button type="button" title="Завершить выбранную сессию" className="nav-link" onClick={() => void revokeSession(s.jti)}>Завершить</button>
                       ) : "-"}
                     </td>
                   </tr>
@@ -307,8 +307,8 @@ export function ProfilePage() {
             <div className="filters">
               <div className="form-field"><label htmlFor="al">Логин</label><input id="al" className="input" value={cLogin} onChange={(e) => setCLogin(e.target.value)} required /></div>
               <div className="form-field"><label htmlFor="ap">Пароль</label><input id="ap" className="input" type="password" value={cPassword} onChange={(e) => setCPassword(e.target.value)} required minLength={8} /></div>
-              <div className="form-field"><label htmlFor="af">Имя</label><input id="af" className="input" value={cFirst} onChange={(e) => setCFirst(e.target.value)} required /></div>
               <div className="form-field"><label htmlFor="aln">Фамилия</label><input id="aln" className="input" value={cLast} onChange={(e) => setCLast(e.target.value)} required /></div>
+              <div className="form-field"><label htmlFor="af">Имя</label><input id="af" className="input" value={cFirst} onChange={(e) => setCFirst(e.target.value)} required /></div>
               <div className="form-field"><label htmlFor="amn">Отчество</label><input id="amn" className="input" value={cMiddle} onChange={(e) => setCMiddle(e.target.value)} /></div>
               <div className="form-field"><label htmlFor="ar">Роль</label><select id="ar" className="input" value={cRole} onChange={(e) => setCRole(e.target.value)}>{roles.map((r) => <option key={r.role_code} value={r.role_code}>{r.role_code}</option>)}</select></div>
               <div className="form-field"><label htmlFor="ae">Email</label><input id="ae" className="input" type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} /></div>
@@ -316,11 +316,11 @@ export function ProfilePage() {
               <div className="form-field"><label htmlFor="ajt">Должность</label><input id="ajt" className="input" value={cJobTitle} onChange={(e) => setCJobTitle(e.target.value)} /></div>
               <div className="form-field"><label htmlFor="adc">Код подразделения</label><input id="adc" className="input" value={cDepartmentCode} onChange={(e) => setCDepartmentCode(e.target.value)} /></div>
               <div className="form-field"><label htmlFor="acp">Компания</label><select id="acp" className="input" value={cCounterpartyUuid} onChange={(e) => setCCounterpartyUuid(e.target.value)}><option value="">-</option>{counterparties.map((c) => <option key={c.uuid} value={c.uuid}>{c.name_ru}</option>)}</select></div>
-              <div className="form-field form-field--inline" style={{ alignSelf: "center" }}>
+              <div className="form-field form-field--inline switch-field" style={{ alignSelf: "center" }}>
                 <label htmlFor="aactive">Активен</label>
-                <input id="aactive" type="checkbox" checked={cIsActive} onChange={(e) => setCIsActive(e.target.checked)} />
+                <input id="aactive" className="switch-check" type="checkbox" checked={cIsActive} onChange={(e) => setCIsActive(e.target.checked)} />
               </div>
-              <button type="submit" className="btn-primary" disabled={createBusy}>{createBusy ? "Создание..." : "Создать пользователя"}</button>
+              <button type="submit" title="Создать учетную запись пользователя" className="btn-primary" disabled={createBusy}>{createBusy ? "Создание..." : "Создать пользователя"}</button>
             </div>
           </form>
           <div className="table-wrap" style={{ marginTop: 12 }}>

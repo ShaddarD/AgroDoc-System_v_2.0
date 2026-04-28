@@ -1,5 +1,5 @@
 import uuid as uuid_pkg
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
@@ -52,6 +52,9 @@ class Application(Base):
     cargo_places_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
     places_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    izveshenie: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes_in_table: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fss_plan_issue_date: Mapped[date | None] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     current_revision_uuid: Mapped[uuid_pkg.UUID | None] = mapped_column(

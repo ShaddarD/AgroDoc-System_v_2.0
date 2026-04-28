@@ -20,6 +20,7 @@ from app.models.domain_events import DomainEvent
 from app.schemas.applications import (
     ApplicationCreateRequest,
     ApplicationListResponse,
+    ApplicationPatchRequest,
     ApplicationResponse,
     ChangeStatusRequest,
 )
@@ -36,6 +37,40 @@ from app.services.workflow import allowed_target_status_codes, change_status
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+
+
+def _normalize_nullable(data: dict) -> dict:
+    out: dict = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                value = None
+        out[key] = value
+    return out
+
+
+def _apply_payload_to_application(application: Application, payload: dict) -> None:
+    mapping = {
+        "application_number": "application_number",
+        "application_type_code": "application_type_code",
+        "applicant_counterparty_uuid": "applicant_counterparty_uuid",
+        "assigned_to": "assigned_to",
+        "terminal_uuid": "terminal_uuid",
+        "product_uuid": "product_uuid",
+        "power_of_attorney_uuid": "power_of_attorney_uuid",
+        "stuffing_act_uuid": "stuffing_act_uuid",
+        "master_application_uuid": "master_application_uuid",
+        "container_count_snapshot": "container_count_snapshot",
+        "places_snapshot": "places_snapshot",
+        "notes": "notes",
+        "izveshenie": "izveshenie",
+        "notes_in_table": "notes_in_table",
+        "fss_plan_issue_date": "fss_plan_issue_date",
+    }
+    for source_key, model_key in mapping.items():
+        if source_key in payload:
+            setattr(application, model_key, payload[source_key])
 
 
 def _resolve_status_user(
@@ -225,6 +260,8 @@ def create_application(
     application = Application(
         source_type=payload.source_type, status_code="CREATED", applicant_account_uuid=created_by
     )
+    normalized_payload = _normalize_nullable(payload.payload)
+    _apply_payload_to_application(application, normalized_payload)
     db.add(application)
     db.flush()
 
@@ -247,7 +284,11 @@ def create_application(
         entity_type="application",
         entity_uuid=application.uuid,
         old_data=None,
-        new_data={"source_type": payload.source_type, "revision_version": 1},
+        new_data={
+            "source_type": payload.source_type,
+            "revision_version": 1,
+            "application_number": application.application_number,
+        },
     )
 
     domain = DomainEvent(
@@ -270,6 +311,39 @@ def create_application(
     except Exception:
         logger.exception("celery_enqueue_failed_for_application_created")
 
+    return application
+
+
+@router.patch("/{application_uuid}", response_model=ApplicationResponse)
+def patch_application(
+    application_uuid: uuid.UUID,
+    payload: ApplicationPatchRequest,
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+    _: None = Depends(require_non_empty_role_or_token),
+) -> Application:
+    application = db.get(Application, application_uuid)
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="application_not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
+    normalized = _normalize_nullable(data)
+    old_data = {key: getattr(application, key, None) for key in normalized}
+    _apply_payload_to_application(application, normalized)
+    user_uuid = request_auth.account.uuid if request_auth.account is not None else None
+    write_audit(
+        db,
+        account_uuid=user_uuid,
+        action="application_update",
+        event_type="UPDATE",
+        entity_type="application",
+        entity_uuid=application.uuid,
+        old_data=old_data,
+        new_data=normalized,
+    )
+    db.commit()
+    db.refresh(application)
     return application
 
 
