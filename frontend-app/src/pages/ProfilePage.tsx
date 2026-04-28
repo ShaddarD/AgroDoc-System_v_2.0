@@ -355,26 +355,28 @@ export function ProfilePage() {
         </section>
       ) : null}
 
-      <section className="profile-panel" style={{ marginTop: 16 }}>
-        <h2>Логирование создания пользователей</h2>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Когда</th><th>Действие</th><th>Тип</th><th>ID сущности</th></tr></thead>
-            <tbody>
-              {auditRows
-                .filter((x) => x.action === "account_create")
-                .map((row) => (
-                  <tr key={row.uuid}>
-                    <td>{new Date(row.created_at).toLocaleString()}</td>
-                    <td>{row.action}</td>
-                    <td>{row.event_type}</td>
-                    <td><code>{row.entity_uuid}</code></td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {isAdmin ? (
+        <section className="profile-panel" style={{ marginTop: 16 }}>
+          <h2>Логирование создания пользователей</h2>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Когда</th><th>Действие</th><th>Тип</th><th>ID сущности</th></tr></thead>
+              <tbody>
+                {auditRows
+                  .filter((x) => x.action === "account_create")
+                  .map((row) => (
+                    <tr key={row.uuid}>
+                      <td>{new Date(row.created_at).toLocaleString()}</td>
+                      <td>{row.action}</td>
+                      <td>{row.event_type}</td>
+                      <td><code>{row.entity_uuid}</code></td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

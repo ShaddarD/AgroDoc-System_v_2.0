@@ -7,7 +7,14 @@ from app.models.audit_logs import AuditLog
 from app.models.counterparty import Counterparty
 from app.models.domain_events import DomainEvent
 from app.models.files import FileRecord
-from app.models.lookups import LookupFileType, LookupRoleCode, LookupSourceType, LookupStatusCode
+from app.models.lookups import (
+    AccountModuleAccess,
+    LookupAccessModule,
+    LookupFileType,
+    LookupRoleCode,
+    LookupSourceType,
+    LookupStatusCode,
+)
 from app.models.power_of_attorney import PowerOfAttorney
 from app.models.product import Product
 from app.models.shipping_line import ShippingLine
@@ -19,6 +26,8 @@ __all__ = [
     "LookupStatusCode",
     "LookupSourceType",
     "LookupFileType",
+    "LookupAccessModule",
+    "AccountModuleAccess",
     "Counterparty",
     "Account",
     "AuthRefreshSession",

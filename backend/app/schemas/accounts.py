@@ -13,6 +13,7 @@ class AccountListItem(BaseModel):
     first_name: str
     last_name: str
     counterparty_uuid: UUID | None
+    counterparty_name: str | None = None
     email: str | None
     is_active: bool
     created_at: datetime
@@ -45,3 +46,20 @@ class AccountPatchIn(BaseModel):
 
 class AdminSetPasswordIn(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=200)
+
+
+class AccountModuleAccessOut(BaseModel):
+    module_code: str
+    module_description: str
+    can_read: bool
+    can_write: bool
+
+
+class AccountModuleAccessPatchItem(BaseModel):
+    module_code: str = Field(..., min_length=1, max_length=100)
+    can_read: bool
+    can_write: bool
+
+
+class AccountModuleAccessPatchIn(BaseModel):
+    items: list[AccountModuleAccessPatchItem]

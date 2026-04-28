@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import String, asc, desc, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -9,8 +9,15 @@ from app.api.deps import get_current_account, require_non_empty_role_or_token
 from app.db.session import get_db
 from app.models.account import Account
 from app.models.counterparty import Counterparty
-from app.models.lookups import LookupRoleCode
-from app.schemas.accounts import AccountCreateIn, AccountListItem, AccountPatchIn, AdminSetPasswordIn
+from app.models.lookups import AccountModuleAccess, LookupAccessModule, LookupRoleCode
+from app.schemas.accounts import (
+    AccountCreateIn,
+    AccountListItem,
+    AccountModuleAccessOut,
+    AccountModuleAccessPatchIn,
+    AccountPatchIn,
+    AdminSetPasswordIn,
+)
 from app.core.security import hash_password
 from app.services.audit import write_audit
 from app.services.auth_tokens import revoke_all_refresh_sessions
@@ -37,11 +44,63 @@ def list_accounts(
     _role: None = Depends(require_non_empty_role_or_token),
     actor: Account = Depends(get_current_account),
     limit: int = Query(200, ge=1, le=500),
-) -> list[Account]:
+    q: str | None = Query(default=None, max_length=100),
+    role_code: str | None = Query(default=None, max_length=50),
+    counterparty_uuid: uuid.UUID | None = Query(default=None),
+    is_active: bool | None = Query(default=None),
+    sort_by: str = Query(default="created_at"),
+    sort_dir: str = Query(default="desc"),
+) -> list[AccountListItem]:
     _require_admin(actor)
-    return list(
-        db.scalars(select(Account).order_by(Account.created_at.desc()).limit(limit)).all()
+    sort_map = {
+        "login": Account.login,
+        "role": Account.role_code,
+        "email": Account.email,
+        "created_at": Account.created_at,
+        "company": Counterparty.name_ru,
+    }
+    sort_col = sort_map.get(sort_by, Account.created_at)
+    sort_expr = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
+
+    stmt = (
+        select(Account, Counterparty.name_ru.label("counterparty_name"))
+        .select_from(Account)
+        .outerjoin(Counterparty, Counterparty.uuid == Account.counterparty_uuid)
     )
+    if q:
+        token = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Account.login.ilike(token),
+                Account.first_name.ilike(token),
+                Account.last_name.ilike(token),
+                Account.email.ilike(token),
+                Counterparty.name_ru.ilike(token),
+            )
+        )
+    if role_code:
+        stmt = stmt.where(Account.role_code == role_code)
+    if counterparty_uuid:
+        stmt = stmt.where(Account.counterparty_uuid == counterparty_uuid)
+    if is_active is not None:
+        stmt = stmt.where(Account.is_active == is_active)
+    stmt = stmt.order_by(sort_expr, Account.created_at.desc()).limit(limit)
+    rows = db.execute(stmt).all()
+    return [
+        AccountListItem(
+            uuid=row.Account.uuid,
+            login=row.Account.login,
+            role_code=row.Account.role_code,
+            first_name=row.Account.first_name,
+            last_name=row.Account.last_name,
+            counterparty_uuid=row.Account.counterparty_uuid,
+            counterparty_name=row.counterparty_name,
+            email=row.Account.email,
+            is_active=row.Account.is_active,
+            created_at=row.Account.created_at,
+        )
+        for row in rows
+    ]
 
 
 @router.post("/accounts", response_model=AccountListItem, status_code=status.HTTP_201_CREATED)
@@ -188,3 +247,84 @@ def set_account_password(
         new_data={"reset_by_admin": True},
     )
     db.commit()
+
+
+@router.get("/accounts/{account_uuid}/module-access", response_model=list[AccountModuleAccessOut])
+def get_account_module_access(
+    account_uuid: uuid.UUID,
+    db: Session = Depends(get_db),
+    _role: None = Depends(require_non_empty_role_or_token),
+    actor: Account = Depends(get_current_account),
+) -> list[AccountModuleAccessOut]:
+    _require_admin(actor)
+    account = db.get(Account, account_uuid)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
+    modules = list(
+        db.scalars(select(LookupAccessModule).order_by(LookupAccessModule.sort_order, LookupAccessModule.module_code)).all()
+    )
+    access_rows = list(
+        db.scalars(select(AccountModuleAccess).where(AccountModuleAccess.account_uuid == account_uuid)).all()
+    )
+    index = {x.module_code: x for x in access_rows}
+    return [
+        AccountModuleAccessOut(
+            module_code=m.module_code,
+            module_description=m.description,
+            can_read=index[m.module_code].can_read if m.module_code in index else False,
+            can_write=index[m.module_code].can_write if m.module_code in index else False,
+        )
+        for m in modules
+    ]
+
+
+@router.put("/accounts/{account_uuid}/module-access", response_model=list[AccountModuleAccessOut])
+def put_account_module_access(
+    account_uuid: uuid.UUID,
+    payload: AccountModuleAccessPatchIn,
+    db: Session = Depends(get_db),
+    _role: None = Depends(require_non_empty_role_or_token),
+    actor: Account = Depends(get_current_account),
+) -> list[AccountModuleAccessOut]:
+    _require_admin(actor)
+    account = db.get(Account, account_uuid)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
+    modules = list(db.scalars(select(LookupAccessModule.module_code)).all())
+    module_set = set(modules)
+    incoming = {}
+    for item in payload.items:
+        if item.module_code not in module_set:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"unknown_module_code:{item.module_code}")
+        incoming[item.module_code] = item
+    existing = list(
+        db.scalars(select(AccountModuleAccess).where(AccountModuleAccess.account_uuid == account_uuid)).all()
+    )
+    existing_by_code = {x.module_code: x for x in existing}
+    for code in module_set:
+        src = incoming.get(code)
+        if src is None:
+            if code in existing_by_code:
+                db.delete(existing_by_code[code])
+            continue
+        row = existing_by_code.get(code)
+        if row is None:
+            row = AccountModuleAccess(
+                account_uuid=account_uuid, module_code=code, can_read=src.can_read, can_write=src.can_write
+            )
+            db.add(row)
+        else:
+            row.can_read = src.can_read
+            row.can_write = src.can_write
+    write_audit(
+        db,
+        account_uuid=actor.uuid,
+        action="account_module_access_update",
+        event_type="UPDATE",
+        entity_type="account",
+        entity_uuid=account_uuid,
+        old_data=None,
+        new_data={"items": [x.model_dump() for x in payload.items]},
+    )
+    db.commit()
+    return get_account_module_access(account_uuid, db, _role, actor)
