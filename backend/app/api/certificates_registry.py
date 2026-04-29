@@ -28,6 +28,23 @@ router = APIRouter(prefix="/certificates-registry", tags=["certificates-registry
 
 MODULE_CODE = "registry_certificates"
 WIDTHS_SETTING_KEY = "column_widths"
+DEFAULT_ORDER = [
+    "registry_number",
+    "bl_number",
+    "bl_date",
+    "weight_tons",
+    "fss_number",
+    "fss_issue_date",
+    "fum",
+    "quality_certificate",
+    "pi",
+    "health",
+    "conclusion",
+    "radio",
+    "non_gmo",
+    "soo",
+    "wood",
+]
 
 
 def _norm_header(value: str) -> str:
@@ -208,14 +225,19 @@ def get_column_widths(
         need_write=False,
     )
     row = db.get(RegistryUiSetting, WIDTHS_SETTING_KEY)
-    widths = row.setting_value if row is not None and isinstance(row.setting_value, dict) else {}
+    settings = row.setting_value if row is not None and isinstance(row.setting_value, dict) else {}
+    widths = settings.get("widths", {}) if isinstance(settings, dict) else {}
+    order = settings.get("order", DEFAULT_ORDER) if isinstance(settings, dict) else DEFAULT_ORDER
     out: dict[str, int] = {}
     for key, value in widths.items():
         try:
             out[str(key)] = int(value)
         except (TypeError, ValueError):
             continue
-    return CertificateRegistryColumnWidthsOut(widths=out)
+    safe_order = [x for x in order if isinstance(x, str)]
+    if not safe_order:
+        safe_order = DEFAULT_ORDER
+    return CertificateRegistryColumnWidthsOut(widths=out, order=safe_order)
 
 
 @router.put("/column-widths", response_model=CertificateRegistryColumnWidthsOut)
@@ -237,14 +259,19 @@ def put_column_widths(
     for key, value in payload.widths.items():
         width = max(80, min(1200, int(value)))
         normalized[str(key)] = width
+    next_order = payload.order or DEFAULT_ORDER
+    safe_order = [x for x in next_order if isinstance(x, str)]
+    if not safe_order:
+        safe_order = DEFAULT_ORDER
+    setting_value = {"widths": normalized, "order": safe_order}
     row = db.get(RegistryUiSetting, WIDTHS_SETTING_KEY)
     if row is None:
-        row = RegistryUiSetting(setting_key=WIDTHS_SETTING_KEY, setting_value=normalized)
+        row = RegistryUiSetting(setting_key=WIDTHS_SETTING_KEY, setting_value=setting_value)
         db.add(row)
     else:
-        row.setting_value = normalized
+        row.setting_value = setting_value
     db.commit()
-    return CertificateRegistryColumnWidthsOut(widths=normalized)
+    return CertificateRegistryColumnWidthsOut(widths=normalized, order=safe_order)
 
 
 @router.patch("/{row_uuid}", response_model=CertificateRegistryRowOut)

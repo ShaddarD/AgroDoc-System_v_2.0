@@ -145,6 +145,11 @@ select.input {
   vertical-align: top;
 }
 
+.data-table th {
+  text-align: center;
+  vertical-align: middle;
+}
+
 .data-table thead {
   background: #eef2f6;
 }
@@ -166,6 +171,23 @@ select.input {
   height: 100%;
   cursor: col-resize;
   z-index: 2;
+}
+
+.col-drag-handle {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  cursor: grab;
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.registry-cell-editor {
+  width: 100%;
+  min-height: 34px;
+  resize: none;
+  white-space: pre-wrap;
+  overflow: hidden;
 }
 
 .table-wrap .nav-link {

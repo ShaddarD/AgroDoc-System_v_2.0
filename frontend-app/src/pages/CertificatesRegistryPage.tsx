@@ -25,7 +25,7 @@ type RegistryRow = {
 };
 
 type ListBody = { items: RegistryRow[]; total: number };
-type WidthsBody = { widths: Record<string, number> };
+type WidthsBody = { widths: Record<string, number>; order: string[] };
 
 type ColumnKey =
   | "registry_number"
@@ -82,6 +82,10 @@ export function CertificatesRegistryPage() {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [dirty, setDirty] = useState<Record<string, Partial<RegistryRow>>>({});
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(COLUMNS.map((x) => x.key));
+  const [tableEditMode, setTableEditMode] = useState(false);
+  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [draggingColumn, setDraggingColumn] = useState<ColumnKey | null>(null);
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -115,6 +119,11 @@ export function CertificatesRegistryPage() {
     if (widthsResp.ok) {
       const widthsBody = (await widthsResp.json()) as WidthsBody;
       setColumnWidths(widthsBody.widths || {});
+      if (Array.isArray(widthsBody.order) && widthsBody.order.length > 0) {
+        const validOrder = widthsBody.order.filter((key): key is ColumnKey => COLUMNS.some((c) => c.key === key));
+        const missing = COLUMNS.map((x) => x.key).filter((k) => !validOrder.includes(k));
+        setColumnOrder([...validOrder, ...missing]);
+      }
     }
     setLoading(false);
   }, [searchParams]);
@@ -152,6 +161,7 @@ export function CertificatesRegistryPage() {
     });
     return arr;
   }, [filteredRows, sortKey, sortDir]);
+  const displayedColumns = useMemo(() => columnOrder.map((k) => COLUMNS.find((x) => x.key === k)).filter(Boolean) as typeof COLUMNS, [columnOrder]);
 
   useEffect(() => {
     const target = searchParams.get("q");
@@ -189,7 +199,7 @@ export function CertificatesRegistryPage() {
   }
 
   function applyCellValue(rowIdx: number, colKey: ColumnKey, value: string) {
-    const row = filteredRows[rowIdx];
+    const row = sortedRows[rowIdx];
     if (!row) return;
     if (!COLUMNS.find((x) => x.key === colKey)?.editable) return;
     setRows((prev) => prev.map((r) => (r.uuid === row.uuid ? { ...r, [colKey]: value || null } : r)));
@@ -231,12 +241,7 @@ export function CertificatesRegistryPage() {
     }
     function onMouseUp() {
       setResizing(null);
-      if (isAdmin) {
-        void api.fetch("/certificates-registry/column-widths", {
-          method: "PUT",
-          body: JSON.stringify({ widths: columnWidths }),
-        });
-      }
+      setLayoutDirty(true);
     }
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
@@ -244,7 +249,7 @@ export function CertificatesRegistryPage() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [resizing, isAdmin, columnWidths]);
+  }, [resizing]);
 
   function clearSearch() {
     setGlobalSearch("");
@@ -274,6 +279,25 @@ export function CertificatesRegistryPage() {
         return next;
       });
     }
+  }
+
+  async function saveLayout() {
+    if (!isAdmin) return;
+    const r = await api.fetch("/certificates-registry/column-widths", {
+      method: "PUT",
+      body: JSON.stringify({ widths: columnWidths, order: columnOrder }),
+    });
+    if (!r.ok) {
+      setError(await api.readApiError(r));
+      return;
+    }
+    setLayoutDirty(false);
+    setOkMsg("Настройки таблицы сохранены.");
+  }
+
+  function autosize(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
   }
 
   async function importFile(file: File) {
@@ -308,6 +332,16 @@ export function CertificatesRegistryPage() {
       {error ? <p className="form-error">{error}</p> : null}
       {okMsg ? <p className="muted">{okMsg}</p> : null}
       {importResult ? <p className="muted">{importResult}</p> : null}
+      {isAdmin ? (
+        <div className="filters">
+          <button type="button" className="btn-ghost" onClick={() => setTableEditMode((prev) => !prev)}>
+            {tableEditMode ? "Редактирование таблицы: ON" : "Редактирование таблицы: OFF"}
+          </button>
+          <button type="button" className="btn-primary" disabled={!layoutDirty} onClick={() => void saveLayout()}>
+            Сохранить изменения
+          </button>
+        </div>
+      ) : null}
 
       {canWriteRegistry && total === 0 ? (
         <div className="form-field">
@@ -322,12 +356,12 @@ export function CertificatesRegistryPage() {
           <table className="data-table">
             <thead>
               <tr>
-                {COLUMNS.map((col) => (
+                {displayedColumns.map((col) => (
                   <th key={col.key} style={{ width: columnWidths[col.key] ?? 180, minWidth: columnWidths[col.key] ?? 180, position: "relative" }}>
                     <button type="button" className="nav-link" onClick={() => toggleSort(col.key)}>
                       {col.label} {sortKey === col.key ? (sortDir === "asc" ? "▲" : "▼") : ""}
                     </button>
-                    {isAdmin ? (
+                    {isAdmin && tableEditMode ? (
                       <span
                         className="col-resize-handle"
                         onMouseDown={(e) => {
@@ -337,11 +371,37 @@ export function CertificatesRegistryPage() {
                         }}
                       />
                     ) : null}
+                    {isAdmin && tableEditMode ? (
+                      <span
+                        className="col-drag-handle"
+                        draggable
+                        onDragStart={() => setDraggingColumn(col.key)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (!draggingColumn || draggingColumn === col.key) return;
+                          setColumnOrder((prev) => {
+                            const from = prev.indexOf(draggingColumn);
+                            const to = prev.indexOf(col.key);
+                            if (from < 0 || to < 0) return prev;
+                            const next = [...prev];
+                            next.splice(from, 1);
+                            next.splice(to, 0, draggingColumn);
+                            return next;
+                          });
+                          setLayoutDirty(true);
+                          setDraggingColumn(null);
+                        }}
+                        onDragEnd={() => setDraggingColumn(null)}
+                        title="Перетащите, чтобы поменять столбцы местами"
+                      >
+                        ↔
+                      </span>
+                    ) : null}
                   </th>
                 ))}
               </tr>
               <tr>
-                {COLUMNS.map((col, idx) => (
+                {displayedColumns.map((col, idx) => (
                   <th key={`${col.key}-f`}>
                     <input
                       ref={idx === 0 ? firstFilterRef : null}
@@ -353,7 +413,7 @@ export function CertificatesRegistryPage() {
                 ))}
               </tr>
               <tr>
-                <th colSpan={COLUMNS.length}>
+                <th colSpan={2}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       className="input"
@@ -367,24 +427,23 @@ export function CertificatesRegistryPage() {
                     </button>
                   </div>
                 </th>
+                {displayedColumns.length > 2 ? <th colSpan={displayedColumns.length - 2} /> : null}
               </tr>
             </thead>
             <tbody>
               {sortedRows.map((row, rowIdx) => (
                 <tr key={row.uuid} ref={(el) => { rowRefs.current[row.uuid] = el; }}>
-                  {COLUMNS.map((col) => {
+                  {displayedColumns.map((col) => {
                     const value = String((row as Record<string, unknown>)[col.key] ?? "");
                     return (
                       <td key={`${row.uuid}-${col.key}`} style={{ width: columnWidths[col.key] ?? 180, minWidth: columnWidths[col.key] ?? 180 }}>
                         {col.editable && canWriteRegistry ? (
                           <textarea
-                            className="input"
+                            className="input registry-cell-editor"
                             value={value}
                             onChange={(e) => applyCellValue(rowIdx, col.key, e.target.value)}
                             onInput={(e) => {
-                              const el = e.currentTarget;
-                              el.style.height = "auto";
-                              el.style.height = `${el.scrollHeight}px`;
+                              autosize(e.currentTarget);
                             }}
                             onBlur={() => {
                               const patch = dirty[row.uuid];
@@ -393,7 +452,9 @@ export function CertificatesRegistryPage() {
                               }
                             }}
                             rows={1}
-                            style={{ width: "100%", minHeight: 34, resize: "vertical", whiteSpace: "pre-wrap", overflow: "hidden" }}
+                            ref={(el) => {
+                              if (el) autosize(el);
+                            }}
                           />
                         ) : (
                           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{value || "-"}</div>
@@ -405,7 +466,7 @@ export function CertificatesRegistryPage() {
               ))}
               {!sortedRows.length ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} className="muted">Нет данных</td>
+                  <td colSpan={displayedColumns.length} className="muted">Нет данных</td>
                 </tr>
               ) : null}
             </tbody>

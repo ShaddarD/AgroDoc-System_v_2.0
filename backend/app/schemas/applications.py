@@ -87,3 +87,13 @@ class ApplicationListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ApplicationTableLayoutOut(BaseModel):
+    widths: dict[str, int]
+    order: list[str]
+
+
+class ApplicationTableLayoutIn(BaseModel):
+    widths: dict[str, int]
+    order: list[str]

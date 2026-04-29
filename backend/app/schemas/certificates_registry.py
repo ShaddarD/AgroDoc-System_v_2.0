@@ -62,7 +62,9 @@ class CertificateRegistryImportOut(BaseModel):
 
 class CertificateRegistryColumnWidthsOut(BaseModel):
     widths: dict[str, int]
+    order: list[str]
 
 
 class CertificateRegistryColumnWidthsIn(BaseModel):
     widths: dict[str, int]
+    order: list[str] | None = None

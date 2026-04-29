@@ -19,11 +19,14 @@ from app.models.application_revisions import ApplicationRevision
 from app.models.applications import Application
 from app.models.audit_logs import AuditLog
 from app.models.domain_events import DomainEvent
+from app.models.registry_ui_settings import RegistryUiSetting
 from app.schemas.applications import (
     ApplicationCreateRequest,
     ApplicationListResponse,
     ApplicationPatchRequest,
     ApplicationResponse,
+    ApplicationTableLayoutIn,
+    ApplicationTableLayoutOut,
     ChangeStatusRequest,
 )
 from app.schemas.history import (
@@ -39,6 +42,20 @@ from app.services.workflow import allowed_target_status_codes, change_status
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/applications", tags=["applications"])
+APP_TABLE_LAYOUT_KEY = "applications_table_layout"
+APP_DEFAULT_ORDER = [
+    "status",
+    "created_at",
+    "author",
+    "application_number",
+    "shipper",
+    "consignee",
+    "destination",
+    "weight",
+    "containers",
+    "product",
+    "actions",
+]
 
 
 def _normalize_nullable(data: dict) -> dict:
@@ -145,6 +162,51 @@ def list_applications(
         "page": page,
         "page_size": page_size,
     }
+
+
+@router.get("/table-layout", response_model=ApplicationTableLayoutOut)
+def get_applications_table_layout(
+    request_auth: RequestAuth = Depends(get_request_auth),
+    _: None = Depends(require_non_empty_role_or_token),
+    db: Session = Depends(get_db),
+) -> ApplicationTableLayoutOut:
+    if request_auth.account is None and not request_auth.roles:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="authentication_required")
+    row = db.get(RegistryUiSetting, APP_TABLE_LAYOUT_KEY)
+    settings = row.setting_value if row is not None and isinstance(row.setting_value, dict) else {}
+    widths = settings.get("widths", {}) if isinstance(settings, dict) else {}
+    order = settings.get("order", APP_DEFAULT_ORDER) if isinstance(settings, dict) else APP_DEFAULT_ORDER
+    out_widths: dict[str, int] = {}
+    for key, value in widths.items():
+        try:
+            out_widths[str(key)] = int(value)
+        except (TypeError, ValueError):
+            continue
+    safe_order = [x for x in order if isinstance(x, str)] or APP_DEFAULT_ORDER
+    return ApplicationTableLayoutOut(widths=out_widths, order=safe_order)
+
+
+@router.put("/table-layout", response_model=ApplicationTableLayoutOut)
+def put_applications_table_layout(
+    payload: ApplicationTableLayoutIn,
+    actor: Account = Depends(get_current_account),
+    db: Session = Depends(get_db),
+) -> ApplicationTableLayoutOut:
+    if actor.role_code != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_only")
+    widths: dict[str, int] = {}
+    for key, value in payload.widths.items():
+        widths[str(key)] = max(80, min(1200, int(value)))
+    order = [x for x in payload.order if isinstance(x, str)] or APP_DEFAULT_ORDER
+    setting_value = {"widths": widths, "order": order}
+    row = db.get(RegistryUiSetting, APP_TABLE_LAYOUT_KEY)
+    if row is None:
+        row = RegistryUiSetting(setting_key=APP_TABLE_LAYOUT_KEY, setting_value=setting_value)
+        db.add(row)
+    else:
+        row.setting_value = setting_value
+    db.commit()
+    return ApplicationTableLayoutOut(widths=widths, order=order)
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
