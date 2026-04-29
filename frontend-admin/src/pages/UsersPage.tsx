@@ -46,12 +46,18 @@ export function UsersPage() {
   const [pwdTarget, setPwdTarget] = useState<string | null>(null);
   const [pwdNew, setPwdNew] = useState("");
   const [pwdBusy, setPwdBusy] = useState(false);
-  const [emailTarget, setEmailTarget] = useState<string | null>(null);
-  const [emailValue, setEmailValue] = useState("");
-  const [emailBusy, setEmailBusy] = useState(false);
   const [accessTarget, setAccessTarget] = useState<string | null>(null);
   const [accessRows, setAccessRows] = useState<ModuleAccessRow[]>([]);
   const [accessBusy, setAccessBusy] = useState(false);
+  const [editTarget, setEditTarget] = useState<Row | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editLogin, setEditLogin] = useState("");
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
+  const [editMiddle, setEditMiddle] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCounterparty, setEditCounterparty] = useState("");
 
   const load = useCallback(async () => {
     setErr(null);
@@ -158,29 +164,40 @@ export function UsersPage() {
     }
   }
 
-  async function editEmail(u: Row) {
-    setEmailTarget(u.uuid);
-    setEmailValue(u.email || "");
+  function openEditUser(u: Row) {
+    setEditTarget(u);
+    setEditLogin(u.login);
+    setEditFirst(u.first_name);
+    setEditLast(u.last_name);
+    setEditMiddle("");
+    setEditRole(u.role_code);
+    setEditEmail(u.email || "");
+    setEditCounterparty(u.counterparty_uuid || "");
   }
 
-  async function submitEmail() {
-    if (!emailTarget) return;
-    setErr(null);
-    setOkMsg(null);
-    setEmailBusy(true);
-    const r = await api.fetch(`/admin/accounts/${emailTarget}`, {
+  async function saveUserEdit() {
+    if (!editTarget) return;
+    setEditBusy(true);
+    const r = await api.fetch(`/admin/accounts/${editTarget.uuid}`, {
       method: "PATCH",
-      body: JSON.stringify({ email: emailValue.trim() || null }),
+      body: JSON.stringify({
+        login: editLogin.trim(),
+        first_name: editFirst.trim(),
+        last_name: editLast.trim(),
+        middle_name: editMiddle.trim() || null,
+        role_code: editRole,
+        email: editEmail.trim() || null,
+        counterparty_uuid: editCounterparty || null,
+      }),
     });
     if (!r.ok) {
       setErr(await api.readApiError(r));
-    } else {
-      setOkMsg("Email обновлён.");
-      setEmailTarget(null);
-      setEmailValue("");
-      void load();
+      setEditBusy(false);
+      return;
     }
-    setEmailBusy(false);
+    setEditTarget(null);
+    setEditBusy(false);
+    await load();
   }
 
   async function openAccess(u: Row) {
@@ -413,8 +430,8 @@ export function UsersPage() {
                     <button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => setPwdTarget(u.uuid)}>
                       Пароль
                     </button>
-                    <button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void editEmail(u)}>
-                      Email
+                    <button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => openEditUser(u)}>
+                      Редактировать
                     </button>
                     <button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void openAccess(u)}>
                       Доступы
@@ -426,22 +443,25 @@ export function UsersPage() {
           </table>
         </div>
       ) : null}
-      {emailTarget ? (
+      {editTarget ? (
         <section className="card" style={{ marginTop: 16, padding: 16 }}>
-          <h2 style={{ fontSize: "1.1rem", margin: "0 0 8px" }}>Редактирование Email</h2>
+          <h2 style={{ fontSize: "1.1rem", margin: "0 0 8px" }}>Редактирование записи</h2>
           <div className="form" style={{ flexFlow: "row wrap", gap: 12, alignItems: "flex-end" }}>
-            <div className="form-field">
-              <label htmlFor="ee">Email</label>
-              <input id="ee" type="email" className="input" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} />
-            </div>
-            <button type="button" className="btn-primary" onClick={() => void submitEmail()} disabled={emailBusy}>{emailBusy ? "…" : "Сохранить"}</button>
-            <button type="button" className="btn-ghost" onClick={() => setEmailTarget(null)}>Отмена</button>
+            <div className="form-field"><label>Логин</label><input className="input" value={editLogin} onChange={(e) => setEditLogin(e.target.value)} /></div>
+            <div className="form-field"><label>Имя</label><input className="input" value={editFirst} onChange={(e) => setEditFirst(e.target.value)} /></div>
+            <div className="form-field"><label>Фамилия</label><input className="input" value={editLast} onChange={(e) => setEditLast(e.target.value)} /></div>
+            <div className="form-field"><label>Отчество</label><input className="input" value={editMiddle} onChange={(e) => setEditMiddle(e.target.value)} /></div>
+            <div className="form-field"><label>Email</label><input className="input" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></div>
+            <div className="form-field"><label>Роль</label><select className="input" value={editRole} onChange={(e) => setEditRole(e.target.value)}>{roles.map((r) => <option key={r.role_code} value={r.role_code}>{r.role_code}</option>)}</select></div>
+            <div className="form-field"><label>Компания</label><select className="input" value={editCounterparty} onChange={(e) => setEditCounterparty(e.target.value)}><option value="">—</option>{counterparties.map((c) => <option key={c.uuid} value={c.uuid}>{c.name_ru}</option>)}</select></div>
+            <button type="button" className="btn-primary" onClick={() => void saveUserEdit()} disabled={editBusy}>{editBusy ? "…" : "Сохранить"}</button>
+            <button type="button" className="btn-ghost" onClick={() => setEditTarget(null)}>Отмена</button>
           </div>
         </section>
       ) : null}
       {accessTarget ? (
         <section className="card" style={{ marginTop: 16, padding: 16 }}>
-          <h2 style={{ fontSize: "1.1rem", margin: "0 0 8px" }}>Доступ к блокам (Read/Write)</h2>
+          <h2 style={{ fontSize: "1.1rem", margin: "0 0 8px" }}>Доступ к блокам (Read/Write) — {rows.find((x) => x.uuid === accessTarget)?.login || accessTarget}</h2>
           {accessBusy ? <p>Загрузка...</p> : null}
           {!accessBusy ? (
             <div className="table-wrap">

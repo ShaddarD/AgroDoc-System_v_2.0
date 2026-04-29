@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import (
     RequestAuth,
+    get_current_account,
     get_request_auth,
     require_non_empty_role_or_token,
 )
 from app.db.session import get_db
 from app.core.config import settings
+from app.models.account import Account
 from app.models.application_revisions import ApplicationRevision
 from app.models.applications import Application
 from app.models.audit_logs import AuditLog
@@ -65,9 +67,16 @@ def _apply_payload_to_application(application: Application, payload: dict) -> No
         "container_count_snapshot": "container_count_snapshot",
         "places_snapshot": "places_snapshot",
         "notes": "notes",
+        "exporter_rus": "exporter_name_ru",
+        "importer_custom": "importer_name",
+        "weight_tons": "weight_tons",
         "destination_place_ru": "destination_place_ru",
         "destination_place_en": "destination_place_en",
         "izveshenie": "izveshenie",
+        "fss_number": "fss_number",
+        "fss_issue_date": "fss_issue_date",
+        "bill_of_lading_number": "bill_of_lading_number",
+        "bill_of_lading_date": "bill_of_lading_date",
         "notes_in_table": "notes_in_table",
         "fss_plan_issue_date": "fss_plan_issue_date",
     }
@@ -94,6 +103,12 @@ def _resolve_status_user(
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST, detail="user_uuid_and_user_roles_required",
     )
+
+
+def _roles_for_workflow(request_auth: RequestAuth) -> list[str]:
+    if request_auth.account is not None:
+        return [request_auth.account.role_code]
+    return request_auth.roles
 
 
 @router.get("", response_model=ApplicationListResponse)
@@ -130,6 +145,18 @@ def list_applications(
         "page": page,
         "page_size": page_size,
     }
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_applications(
+    db: Session = Depends(get_db),
+    actor: Account = Depends(get_current_account),
+) -> None:
+    if actor.role_code != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_only")
+    db.query(ApplicationRevision).delete()
+    db.query(Application).delete()
+    db.commit()
 
 
 @router.get(
@@ -261,7 +288,7 @@ def create_application(
         created_by = request_auth.account.uuid
 
     application = Application(
-        source_type=payload.source_type, status_code="CREATED", applicant_account_uuid=created_by
+        source_type=payload.source_type, status_code="DRAFT", applicant_account_uuid=created_by
     )
     normalized_payload = _normalize_nullable(payload.payload)
     _apply_payload_to_application(application, normalized_payload)
@@ -334,6 +361,10 @@ def patch_application(
     normalized = _normalize_nullable(data)
     old_data = {key: getattr(application, key, None) for key in normalized}
     _apply_payload_to_application(application, normalized)
+    if application.bill_of_lading_number and application.bill_of_lading_date:
+        application.status_code = "COMPLETED"
+    elif application.fss_number and application.fss_issue_date:
+        application.status_code = "RELEASED"
     user_uuid = request_auth.account.uuid if request_auth.account is not None else None
     write_audit(
         db,
@@ -348,6 +379,32 @@ def patch_application(
     db.commit()
     db.refresh(application)
     return application
+
+
+@router.post("/{application_uuid}/submit", status_code=status.HTTP_204_NO_CONTENT)
+def submit_application(
+    application_uuid: uuid.UUID,
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> None:
+    application = db.get(Application, application_uuid)
+    if application is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="application_not_found")
+    if request_auth.account is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="authentication_required")
+    old_status = application.status_code
+    application.status_code = "SUBMITTED"
+    write_audit(
+        db,
+        account_uuid=request_auth.account.uuid,
+        action="application_submit",
+        event_type="STATUS_CHANGE",
+        entity_type="application",
+        entity_uuid=application.uuid,
+        old_data={"status_code": old_status},
+        new_data={"status_code": "SUBMITTED"},
+    )
+    db.commit()
 
 
 @router.post("/{application_uuid}/change-status", status_code=status.HTTP_204_NO_CONTENT)

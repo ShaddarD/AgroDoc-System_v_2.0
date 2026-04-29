@@ -4,11 +4,18 @@ import { useAuth } from "../auth/AuthContext";
 import { useSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { IconBook, IconHome, IconKey, IconList, IconLogOut, IconUsers } from "../../../shared-ui/src/NavIcons";
 import { api } from "../lib/api";
+import { HotkeysProvider } from "../hotkeys/HotkeysContext";
 
 type Counterparty = { uuid: string; name_ru: string };
 
-export function AppLayout() {
-  const { account, logout, loading, isAuthenticated } = useAuth();
+function AppLayoutInner() {
+  const { account, logout, loading, isAuthenticated, canRead } = useAuth();
+  const canOpenLookups =
+    canRead("lookups_counterparties") ||
+    canRead("lookups_shipping_lines") ||
+    canRead("lookups_products") ||
+    canRead("lookups_terminals") ||
+    canRead("lookups_powers_of_attorney");
   const nav = useNavigate();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -119,14 +126,24 @@ export function AppLayout() {
           </NavLink>
           {isAuthenticated ? (
             <>
-              <NavLink to="/lookups" className={navCls}>
+              <NavLink to="/applications/certificates" className={navCls}>
                 <span className="app-sidebar__link-inner">
                   <span className="app-sidebar__icon">
-                    <IconBook />
+                    <IconList />
                   </span>
-                  <span className="app-sidebar__label">Справочники</span>
+                  <span className="app-sidebar__label">Реестр сертификатов</span>
                 </span>
               </NavLink>
+              {canOpenLookups ? (
+                <NavLink to="/lookups" className={navCls}>
+                  <span className="app-sidebar__link-inner">
+                    <span className="app-sidebar__icon">
+                      <IconBook />
+                    </span>
+                    <span className="app-sidebar__label">Справочники</span>
+                  </span>
+                </NavLink>
+              ) : null}
               <NavLink to="/profile" className={navCls}>
                 <span className="app-sidebar__link-inner">
                   <span className="app-sidebar__icon">
@@ -231,5 +248,13 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <HotkeysProvider>
+      <AppLayoutInner />
+    </HotkeysProvider>
   );
 }

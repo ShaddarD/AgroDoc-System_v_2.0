@@ -5,6 +5,7 @@ from app.models.application_revisions import ApplicationRevision
 from app.models.applications import Application
 from app.models.audit_logs import AuditLog
 from app.models.counterparty import Counterparty
+from app.models.certificates_registry import CertificateRegistryRow
 from app.models.domain_events import DomainEvent
 from app.models.files import FileRecord
 from app.models.lookups import (
@@ -18,6 +19,7 @@ from app.models.lookups import (
 )
 from app.models.power_of_attorney import PowerOfAttorney
 from app.models.product import Product
+from app.models.registry_ui_settings import RegistryUiSetting
 from app.models.shipping_line import ShippingLine
 from app.models.status_history import StatusHistory
 from app.models.terminal import Terminal
@@ -44,4 +46,6 @@ __all__ = [
     "AuditLog",
     "FileRecord",
     "DomainEvent",
+    "CertificateRegistryRow",
+    "RegistryUiSetting",
 ]

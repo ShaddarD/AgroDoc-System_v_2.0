@@ -173,6 +173,7 @@ def patch_account(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
 
     old_snapshot = {
+        "login": row.login,
         "role_code": row.role_code,
         "is_active": row.is_active,
         "last_name": row.last_name,
@@ -188,6 +189,9 @@ def patch_account(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_remove_own_admin_role",
             )
+    if "counterparty_uuid" in data and data["counterparty_uuid"] is not None:
+        if not _counterparty_exists(db, data["counterparty_uuid"]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unknown_counterparty")
     if data.get("is_active") is False and row.uuid == actor.uuid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_deactivate_self")
 

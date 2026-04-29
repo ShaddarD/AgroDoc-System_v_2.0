@@ -36,12 +36,14 @@ class AccountCreateIn(BaseModel):
 class AccountPatchIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    login: str | None = Field(None, min_length=1, max_length=100)
     role_code: str | None = Field(None, min_length=1, max_length=50)
     is_active: bool | None = None
     last_name: str | None = Field(None, min_length=1, max_length=100)
     first_name: str | None = Field(None, min_length=1, max_length=100)
     middle_name: str | None = Field(None, max_length=100)
     email: str | None = Field(None, max_length=255)
+    counterparty_uuid: UUID | None = None
 
 
 class AdminSetPasswordIn(BaseModel):

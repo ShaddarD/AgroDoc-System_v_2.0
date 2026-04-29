@@ -4,6 +4,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { ApplicationsCreatePage } from "./pages/ApplicationsCreatePage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
+import { CertificatesRegistryPage } from "./pages/CertificatesRegistryPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { LookupsPage } from "./pages/LookupsPage";
@@ -33,6 +34,14 @@ export function App() {
           element={
             <RequireAuth>
               <ApplicationsCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="applications/certificates"
+          element={
+            <RequireAuth>
+              <CertificatesRegistryPage />
             </RequireAuth>
           }
         />

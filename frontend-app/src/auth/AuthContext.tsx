@@ -2,11 +2,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api } from "../lib/api";
 import type { Account } from "../../../shared-ui/src/apiClient";
 
+export type ModuleAccess = { module_code: string; module_description: string; can_read: boolean; can_write: boolean };
+
 type AuthState = {
   account: Account | null;
+  moduleAccess: ModuleAccess[];
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  canRead: (moduleCode: string) => boolean;
+  canWrite: (moduleCode: string) => boolean;
   login: (login: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -16,11 +21,13 @@ const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
+  const [moduleAccess, setModuleAccess] = useState<ModuleAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const clearSession = useCallback((nextError: string | null = null) => {
     api.deleteToken();
     setAccount(null);
+    setModuleAccess([]);
     setError(nextError);
   }, []);
 
@@ -34,6 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!me) {
         clearSession("session_expired");
         return;
+      }
+      const accessResp = await api.fetch("/auth/me/module-access", { method: "GET" });
+      if (accessResp.ok) {
+        setModuleAccess((await accessResp.json()) as ModuleAccess[]);
+      } else {
+        setModuleAccess([]);
       }
       setAccount(me);
       setError(null);
@@ -70,6 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await api.login(l, p);
       api.setTokens(data.access_token, data.refresh_token);
       setAccount(data.account);
+      const accessResp = await api.fetch("/auth/me/module-access", { method: "GET" });
+      if (accessResp.ok) {
+        setModuleAccess((await accessResp.json()) as ModuleAccess[]);
+      } else {
+        setModuleAccess([]);
+      }
       setError(null);
     } catch (e) {
       clearSession(e instanceof Error ? e.message : "login_failed");
@@ -85,14 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       account,
+      moduleAccess,
       loading,
       error,
       isAuthenticated: account !== null,
+      canRead: (moduleCode: string) => moduleAccess.some((x) => x.module_code === moduleCode && x.can_read),
+      canWrite: (moduleCode: string) => moduleAccess.some((x) => x.module_code === moduleCode && x.can_write),
       login,
       logout,
       refresh,
     }),
-    [account, loading, error, login, logout, refresh],
+    [account, moduleAccess, loading, error, login, logout, refresh],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

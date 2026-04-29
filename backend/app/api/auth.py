@@ -12,6 +12,8 @@ from app.core.security import decode_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.account import Account
 from app.models.auth_refresh_session import AuthRefreshSession
+from app.models.lookups import AccountModuleAccess, LookupAccessModule
+from app.schemas.accounts import AccountModuleAccessOut
 from app.schemas.auth import (
     AccountOut,
     ChangePasswordRequest,
@@ -164,6 +166,29 @@ def me(
     account: Account = Depends(get_current_account),
 ) -> Account:
     return account
+
+
+@router.get("/me/module-access", response_model=list[AccountModuleAccessOut])
+def my_module_access(
+    db: Session = Depends(get_db),
+    account: Account = Depends(get_current_account),
+) -> list[AccountModuleAccessOut]:
+    modules = list(
+        db.scalars(select(LookupAccessModule).order_by(LookupAccessModule.sort_order, LookupAccessModule.module_code)).all()
+    )
+    access_rows = list(
+        db.scalars(select(AccountModuleAccess).where(AccountModuleAccess.account_uuid == account.uuid)).all()
+    )
+    index = {x.module_code: x for x in access_rows}
+    return [
+        AccountModuleAccessOut(
+            module_code=m.module_code,
+            module_description=m.description,
+            can_read=index[m.module_code].can_read if m.module_code in index else False,
+            can_write=index[m.module_code].can_write if m.module_code in index else False,
+        )
+        for m in modules
+    ]
 
 
 @router.get("/sessions", response_model=list[RefreshSessionOut])

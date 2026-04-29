@@ -26,9 +26,16 @@ class ApplicationPatchRequest(BaseModel):
     container_count_snapshot: int | None = None
     places_snapshot: int | None = None
     notes: str | None = None
+    exporter_name_ru: str | None = None
+    importer_name: str | None = None
+    weight_tons: float | None = None
     destination_place_ru: str | None = None
     destination_place_en: str | None = None
     izveshenie: str | None = None
+    fss_number: str | None = Field(None, max_length=100)
+    fss_issue_date: date | None = None
+    bill_of_lading_number: str | None = Field(None, max_length=100)
+    bill_of_lading_date: date | None = None
     notes_in_table: str | None = None
     fss_plan_issue_date: date | None = None
 
@@ -58,9 +65,16 @@ class ApplicationResponse(BaseModel):
     container_count_snapshot: int | None
     places_snapshot: int | None
     notes: str | None
+    exporter_name_ru: str | None
+    importer_name: str | None
+    weight_tons: float | None
     destination_place_ru: str | None
     destination_place_en: str | None
     izveshenie: str | None
+    fss_number: str | None
+    fss_issue_date: date | None
+    bill_of_lading_number: str | None
+    bill_of_lading_date: date | None
     notes_in_table: str | None
     fss_plan_issue_date: date | None
     current_revision_uuid: UUID | None

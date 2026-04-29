@@ -2,9 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/AuthContext";
 
-type RoleRow = { role_code: string; description: string; sort_order: number };
-type StatusRow = { status_code: string; description: string };
-type CodeRow = { code: string; description: string };
 type ShippingLineRow = {
   uuid: string;
   code: string;
@@ -56,10 +53,6 @@ type CounterpartyRow = {
 };
 
 type Tab =
-  | "roles"
-  | "statuses"
-  | "source"
-  | "files"
   | "counterparties"
   | "shipping-lines"
   | "products"
@@ -67,16 +60,11 @@ type Tab =
   | "powers-of-attorney";
 
 export function LookupsPage() {
-  const { account } = useAuth();
-  const isAdmin = account?.role_code === "admin";
+  const { canRead, canWrite } = useAuth();
   const [tab, setTab] = useState<Tab>("counterparties");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const [roles, setRoles] = useState<RoleRow[]>([]);
-  const [statuses, setStatuses] = useState<StatusRow[]>([]);
-  const [sourceTypes, setSourceTypes] = useState<CodeRow[]>([]);
-  const [fileTypes, setFileTypes] = useState<CodeRow[]>([]);
   const [counterparties, setCounterparties] = useState<CounterpartyRow[]>([]);
   const [shippingLines, setShippingLines] = useState<ShippingLineRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -129,38 +117,59 @@ export function LookupsPage() {
   const [poaIsActive, setPoaIsActive] = useState(true);
   const [poaSaving, setPoaSaving] = useState(false);
 
+  const accessByTab: Record<Tab, { read: boolean; write: boolean; label: string }> = {
+    counterparties: {
+      read: canRead("lookups_counterparties"),
+      write: canWrite("lookups_counterparties"),
+      label: "Контрагенты",
+    },
+    "shipping-lines": {
+      read: canRead("lookups_shipping_lines"),
+      write: canWrite("lookups_shipping_lines"),
+      label: "Линии перевозки",
+    },
+    products: {
+      read: canRead("lookups_products"),
+      write: canWrite("lookups_products"),
+      label: "Продукты",
+    },
+    terminals: {
+      read: canRead("lookups_terminals"),
+      write: canWrite("lookups_terminals"),
+      label: "Терминалы",
+    },
+    "powers-of-attorney": {
+      read: canRead("lookups_powers_of_attorney"),
+      write: canWrite("lookups_powers_of_attorney"),
+      label: "Доверенности",
+    },
+  };
+  const visibleTabs = (Object.keys(accessByTab) as Tab[]).filter((x) => accessByTab[x].read);
+  const activeCanWrite = accessByTab[tab]?.write ?? false;
+
+  useEffect(() => {
+    if (!visibleTabs.length) {
+      return;
+    }
+    if (!visibleTabs.includes(tab)) {
+      setTab(visibleTabs[0]);
+    }
+  }, [tab, visibleTabs]);
+
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
-      const [rRoles, rStatuses, rSource, rFiles, rCounterparties, rShippingLines, rProducts, rTerminals, rPoa] = await Promise.all([
-        api.fetch("/lookups/roles"),
-        api.fetch("/lookups/statuses"),
-        api.fetch("/lookups/source-types"),
-        api.fetch("/lookups/file-types"),
+      const [rCounterparties, rShippingLines, rProducts, rTerminals, rPoa] = await Promise.all([
         api.fetch("/lookups/counterparties"),
         api.fetch("/lookups/shipping-lines"),
         api.fetch("/lookups/products"),
         api.fetch("/lookups/terminals"),
         api.fetch("/lookups/powers-of-attorney"),
       ]);
-      if (
-        !rRoles.ok ||
-        !rStatuses.ok ||
-        !rSource.ok ||
-        !rFiles.ok ||
-        !rCounterparties.ok ||
-        !rShippingLines.ok ||
-        !rProducts.ok ||
-        !rTerminals.ok ||
-        !rPoa.ok
-      ) {
+      if (!rCounterparties.ok || !rShippingLines.ok || !rProducts.ok || !rTerminals.ok || !rPoa.ok) {
         throw new Error("load_failed");
       }
-      setRoles((await rRoles.json()) as RoleRow[]);
-      setStatuses((await rStatuses.json()) as StatusRow[]);
-      setSourceTypes((await rSource.json()) as CodeRow[]);
-      setFileTypes((await rFiles.json()) as CodeRow[]);
       setCounterparties((await rCounterparties.json()) as CounterpartyRow[]);
       setShippingLines((await rShippingLines.json()) as ShippingLineRow[]);
       setProducts((await rProducts.json()) as ProductRow[]);
@@ -179,7 +188,7 @@ export function LookupsPage() {
 
   async function saveCounterparty(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAdmin) {
+    if (!activeCanWrite) {
       return;
     }
     setCSaving(true);
@@ -220,7 +229,7 @@ export function LookupsPage() {
   }
 
   async function removeCounterparty(row: CounterpartyRow) {
-    if (!isAdmin) {
+    if (!activeCanWrite) {
       return;
     }
     const r = await api.fetch(`/lookups/counterparties/${row.uuid}`, { method: "DELETE" });
@@ -233,7 +242,7 @@ export function LookupsPage() {
 
   async function saveShippingLine(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!activeCanWrite) return;
     setSSaving(true);
     const payload = { code: sCode.trim(), name_ru: sNameRu.trim(), name_en: sNameEn.trim(), is_active: sIsActive };
     const r = sEditId
@@ -264,7 +273,7 @@ export function LookupsPage() {
 
   async function saveProduct(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!activeCanWrite) return;
     setPSaving(true);
     const payload = {
       product_code: pCode.trim(),
@@ -306,7 +315,7 @@ export function LookupsPage() {
 
   async function saveTerminal(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!activeCanWrite) return;
     setTSaving(true);
     const payload = {
       terminal_code: tCode.trim(),
@@ -344,7 +353,7 @@ export function LookupsPage() {
 
   async function savePoa(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!activeCanWrite) return;
     setPoaSaving(true);
     const payload = {
       poa_number: poaNumber.trim(),
@@ -387,42 +396,21 @@ export function LookupsPage() {
   return (
     <section className="card page page-wide">
       <h1>Справочники</h1>
-      <p className="muted">Данные справочников и контрагентов. CRUD доступен только администратору.</p>
+      <p className="muted">Вкладки показываются по праву Read, кнопка изменения по праву Write.</p>
       <div className="tabs">
-        <button type="button" title="Открыть справочник контрагентов" className={`tab ${tab === "counterparties" ? "tab--on" : ""}`} onClick={() => setTab("counterparties")}>
-          Контрагенты
-        </button>
-        <button type="button" title="Открыть справочник ролей" className={`tab ${tab === "roles" ? "tab--on" : ""}`} onClick={() => setTab("roles")}>
-          Роли
-        </button>
-        <button type="button" title="Открыть справочник статусов" className={`tab ${tab === "statuses" ? "tab--on" : ""}`} onClick={() => setTab("statuses")}>
-          Статусы
-        </button>
-        <button type="button" title="Открыть типы источников" className={`tab ${tab === "source" ? "tab--on" : ""}`} onClick={() => setTab("source")}>
-          Источники
-        </button>
-        <button type="button" title="Открыть типы файлов" className={`tab ${tab === "files" ? "tab--on" : ""}`} onClick={() => setTab("files")}>
-          Типы файлов
-        </button>
-        <button type="button" title="Открыть линии перевозки" className={`tab ${tab === "shipping-lines" ? "tab--on" : ""}`} onClick={() => setTab("shipping-lines")}>
-          Линии перевозки
-        </button>
-        <button type="button" title="Открыть справочник продуктов" className={`tab ${tab === "products" ? "tab--on" : ""}`} onClick={() => setTab("products")}>
-          Продукты
-        </button>
-        <button type="button" title="Открыть справочник терминалов" className={`tab ${tab === "terminals" ? "tab--on" : ""}`} onClick={() => setTab("terminals")}>
-          Терминалы
-        </button>
-        <button type="button" title="Открыть справочник доверенностей" className={`tab ${tab === "powers-of-attorney" ? "tab--on" : ""}`} onClick={() => setTab("powers-of-attorney")}>
-          Доверенности
-        </button>
+        {visibleTabs.map((tabCode) => (
+          <button key={tabCode} type="button" title={`Открыть справочник: ${accessByTab[tabCode].label}`} className={`tab ${tab === tabCode ? "tab--on" : ""}`} onClick={() => setTab(tabCode)}>
+            {accessByTab[tabCode].label}
+          </button>
+        ))}
       </div>
+      {!visibleTabs.length ? <p className="muted">Нет доступа к справочникам.</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
       {loading ? <p>Загрузка...</p> : null}
 
       {!loading && tab === "counterparties" ? (
         <>
-          {isAdmin ? (
+          {activeCanWrite ? (
             <form className="form" style={{ width: "100%" }} onSubmit={saveCounterparty}>
               <h2>{cEditId ? "Редактирование контрагента" : "Новый контрагент"}</h2>
               <div className="filters">
@@ -481,7 +469,7 @@ export function LookupsPage() {
                   <th>Факт. адрес</th>
                   <th>Статус</th>
                   <th>Активен</th>
-                  {isAdmin ? <th /> : null}
+                  {activeCanWrite ? <th /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -495,7 +483,7 @@ export function LookupsPage() {
                     <td>{row.actual_address_ru || row.actual_address_en || "-"}</td>
                     <td>{row.status_code}</td>
                     <td>{row.is_active ? "да" : "нет"}</td>
-                    {isAdmin ? (
+                    {activeCanWrite ? (
                       <td>
                         <button
                           type="button"
@@ -528,21 +516,9 @@ export function LookupsPage() {
         </>
       ) : null}
 
-      {!loading && tab === "roles" ? (
-        <ul>{roles.map((r) => <li key={r.role_code}>{r.role_code} - {r.description}</li>)}</ul>
-      ) : null}
-      {!loading && tab === "statuses" ? (
-        <ul>{statuses.map((r) => <li key={r.status_code}>{r.status_code} - {r.description}</li>)}</ul>
-      ) : null}
-      {!loading && tab === "source" ? (
-        <ul>{sourceTypes.map((r) => <li key={r.code}>{r.code} - {r.description}</li>)}</ul>
-      ) : null}
-      {!loading && tab === "files" ? (
-        <ul>{fileTypes.map((r) => <li key={r.code}>{r.code} - {r.description}</li>)}</ul>
-      ) : null}
       {!loading && tab === "shipping-lines" ? (
         <>
-          {isAdmin ? (
+          {activeCanWrite ? (
             <form className="form" onSubmit={saveShippingLine}>
               <h2>{sEditId ? "Редактирование линии" : "Новая линия"}</h2>
               <div className="filters">
@@ -554,12 +530,12 @@ export function LookupsPage() {
               </div>
             </form>
           ) : null}
-          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>RU</th><th>EN</th><th>Активна</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{shippingLines.map((r) => <tr key={r.uuid}><td>{r.code}</td><td>{r.name_ru}</td><td>{r.name_en}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setSEditId(r.uuid); setSCode(r.code); setSNameRu(r.name_ru); setSNameEn(r.name_en); setSIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeShippingLine(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>RU</th><th>EN</th><th>Активна</th>{activeCanWrite ? <th /> : null}</tr></thead><tbody>{shippingLines.map((r) => <tr key={r.uuid}><td>{r.code}</td><td>{r.name_ru}</td><td>{r.name_en}</td><td>{r.is_active ? "да" : "нет"}</td>{activeCanWrite ? <td><button type="button" className="nav-link" onClick={() => { setSEditId(r.uuid); setSCode(r.code); setSNameRu(r.name_ru); setSNameEn(r.name_en); setSIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeShippingLine(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
         </>
       ) : null}
       {!loading && tab === "products" ? (
         <>
-          {isAdmin ? (
+          {activeCanWrite ? (
             <form className="form" onSubmit={saveProduct}>
               <h2>{pEditId ? "Редактирование продукта" : "Новый продукт"}</h2>
               <div className="filters">
@@ -574,12 +550,12 @@ export function LookupsPage() {
               </div>
             </form>
           ) : null}
-          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>HS</th><th>Название</th><th>Активен</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{products.map((r) => <tr key={r.uuid}><td>{r.product_code}</td><td>{r.hs_code_tnved}</td><td>{r.product_name_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setPEditId(r.uuid); setPCode(r.product_code); setPHsCode(r.hs_code_tnved); setPNameRu(r.product_name_ru); setPNameEn(r.product_name_en || ""); setPBotanical(r.botanical_name_latin || ""); setPRegulatory(r.regulatory_documents || ""); setPIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeProduct(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>HS</th><th>Название</th><th>Активен</th>{activeCanWrite ? <th /> : null}</tr></thead><tbody>{products.map((r) => <tr key={r.uuid}><td>{r.product_code}</td><td>{r.hs_code_tnved}</td><td>{r.product_name_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{activeCanWrite ? <td><button type="button" className="nav-link" onClick={() => { setPEditId(r.uuid); setPCode(r.product_code); setPHsCode(r.hs_code_tnved); setPNameRu(r.product_name_ru); setPNameEn(r.product_name_en || ""); setPBotanical(r.botanical_name_latin || ""); setPRegulatory(r.regulatory_documents || ""); setPIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeProduct(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
         </>
       ) : null}
       {!loading && tab === "terminals" ? (
         <>
-          {isAdmin ? (
+          {activeCanWrite ? (
             <form className="form" onSubmit={saveTerminal}>
               <h2>{tEditId ? "Редактирование терминала" : "Новый терминал"}</h2>
               <div className="filters">
@@ -592,12 +568,12 @@ export function LookupsPage() {
               </div>
             </form>
           ) : null}
-          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>Название</th><th>Адрес RU</th><th>Активен</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{terminals.map((r) => <tr key={r.uuid}><td>{r.terminal_code}</td><td>{r.terminal_name}</td><td>{r.address_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setTEditId(r.uuid); setTCode(r.terminal_code); setTName(r.terminal_name); setTAddressRu(r.address_ru); setTAddressEn(r.address_en || ""); setTIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeTerminal(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Код</th><th>Название</th><th>Адрес RU</th><th>Активен</th>{activeCanWrite ? <th /> : null}</tr></thead><tbody>{terminals.map((r) => <tr key={r.uuid}><td>{r.terminal_code}</td><td>{r.terminal_name}</td><td>{r.address_ru}</td><td>{r.is_active ? "да" : "нет"}</td>{activeCanWrite ? <td><button type="button" className="nav-link" onClick={() => { setTEditId(r.uuid); setTCode(r.terminal_code); setTName(r.terminal_name); setTAddressRu(r.address_ru); setTAddressEn(r.address_en || ""); setTIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removeTerminal(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
         </>
       ) : null}
       {!loading && tab === "powers-of-attorney" ? (
         <>
-          {isAdmin ? (
+          {activeCanWrite ? (
             <form className="form" onSubmit={savePoa}>
               <h2>{poaEditId ? "Редактирование доверенности" : "Новая доверенность"}</h2>
               <div className="filters">
@@ -612,7 +588,7 @@ export function LookupsPage() {
               </div>
             </form>
           ) : null}
-          <div className="table-wrap"><table className="data-table"><thead><tr><th>Номер</th><th>Дата</th><th>Срок</th><th>Статус</th><th>Активна</th>{isAdmin ? <th /> : null}</tr></thead><tbody>{poaRows.map((r) => <tr key={r.uuid}><td>{r.poa_number}</td><td>{r.issue_date}</td><td>{r.validity_years}</td><td>{r.status_code}</td><td>{r.is_active ? "да" : "нет"}</td>{isAdmin ? <td><button type="button" className="nav-link" onClick={() => { setPoaEditId(r.uuid); setPoaNumber(r.poa_number); setPoaIssueDate(r.issue_date); setPoaValidityYears(String(r.validity_years)); setPoaPrincipal(r.principal_counterparty_uuid || ""); setPoaAttorney(r.attorney_counterparty_uuid || ""); setPoaStatusCode(r.status_code); setPoaIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removePoa(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="data-table"><thead><tr><th>Номер</th><th>Дата</th><th>Срок</th><th>Статус</th><th>Активна</th>{activeCanWrite ? <th /> : null}</tr></thead><tbody>{poaRows.map((r) => <tr key={r.uuid}><td>{r.poa_number}</td><td>{r.issue_date}</td><td>{r.validity_years}</td><td>{r.status_code}</td><td>{r.is_active ? "да" : "нет"}</td>{activeCanWrite ? <td><button type="button" className="nav-link" onClick={() => { setPoaEditId(r.uuid); setPoaNumber(r.poa_number); setPoaIssueDate(r.issue_date); setPoaValidityYears(String(r.validity_years)); setPoaPrincipal(r.principal_counterparty_uuid || ""); setPoaAttorney(r.attorney_counterparty_uuid || ""); setPoaStatusCode(r.status_code); setPoaIsActive(r.is_active); }}>Изменить</button><button type="button" className="nav-link" style={{ marginLeft: 8 }} onClick={() => void removePoa(r)}>Деактивировать</button></td> : null}</tr>)}</tbody></table></div>
         </>
       ) : null}
     </section>

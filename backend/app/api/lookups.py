@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_request_roles, require_admin_roles
+from app.api.deps import RequestAuth, get_request_auth, get_request_roles, require_admin_roles, require_module_access
 from app.db.session import get_db
 from app.models.counterparty import Counterparty
 from app.models.lookups import LookupFileType, LookupLaboratory, LookupRoleCode, LookupSourceType, LookupStatusCode
@@ -38,6 +38,14 @@ from app.schemas.lookups import (
 from app.services.audit import write_audit
 
 router = APIRouter(prefix="/lookups", tags=["lookups"])
+
+LOOKUP_MODULE_CODES = {
+    "counterparties": "lookups_counterparties",
+    "shipping_lines": "lookups_shipping_lines",
+    "products": "lookups_products",
+    "terminals": "lookups_terminals",
+    "powers_of_attorney": "lookups_powers_of_attorney",
+}
 
 
 @router.get("/roles", response_model=list[LookupRoleOut])
@@ -104,7 +112,17 @@ def create_role(
 
 
 @router.get("/counterparties", response_model=list[CounterpartyOut])
-def list_counterparties(db: Session = Depends(get_db)) -> list[Counterparty]:
+def list_counterparties(
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> list[Counterparty]:
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["counterparties"],
+        need_write=False,
+    )
     return list(db.scalars(select(Counterparty).order_by(Counterparty.name_ru)).all())
 
 
@@ -112,9 +130,15 @@ def list_counterparties(db: Session = Depends(get_db)) -> list[Counterparty]:
 def create_counterparty(
     payload: CounterpartyCreateIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Counterparty:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["counterparties"],
+        need_write=True,
+    )
     row = Counterparty(
         name_ru=payload.name_ru.strip(),
         name_en=payload.name_en.strip() if payload.name_en else None,
@@ -150,9 +174,15 @@ def patch_counterparty(
     counterparty_uuid: uuid_pkg.UUID,
     payload: CounterpartyPatchIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Counterparty:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["counterparties"],
+        need_write=True,
+    )
     data = payload.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_patch")
@@ -190,9 +220,15 @@ def patch_counterparty(
 def delete_counterparty(
     counterparty_uuid: uuid_pkg.UUID,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> None:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["counterparties"],
+        need_write=True,
+    )
     row = db.get(Counterparty, counterparty_uuid)
     if row is None:
         return
@@ -213,7 +249,17 @@ def delete_counterparty(
 
 
 @router.get("/shipping-lines", response_model=list[ShippingLineOut])
-def list_shipping_lines(db: Session = Depends(get_db)) -> list[ShippingLine]:
+def list_shipping_lines(
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> list[ShippingLine]:
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["shipping_lines"],
+        need_write=False,
+    )
     return list(db.scalars(select(ShippingLine).order_by(ShippingLine.code)).all())
 
 
@@ -221,9 +267,15 @@ def list_shipping_lines(db: Session = Depends(get_db)) -> list[ShippingLine]:
 def create_shipping_line(
     payload: ShippingLineCreateIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> ShippingLine:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["shipping_lines"],
+        need_write=True,
+    )
     row = ShippingLine(
         code=payload.code.strip(),
         name_ru=payload.name_ru.strip(),
@@ -256,9 +308,15 @@ def patch_shipping_line(
     line_uuid: uuid_pkg.UUID,
     payload: ShippingLinePatchIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> ShippingLine:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["shipping_lines"],
+        need_write=True,
+    )
     row = db.get(ShippingLine, line_uuid)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="shipping_line_not_found")
@@ -294,9 +352,15 @@ def patch_shipping_line(
 def delete_shipping_line(
     line_uuid: uuid_pkg.UUID,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> None:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["shipping_lines"],
+        need_write=True,
+    )
     row = db.get(ShippingLine, line_uuid)
     if row is None:
         return
@@ -316,7 +380,17 @@ def delete_shipping_line(
 
 
 @router.get("/products", response_model=list[ProductOut])
-def list_products(db: Session = Depends(get_db)) -> list[Product]:
+def list_products(
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> list[Product]:
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["products"],
+        need_write=False,
+    )
     return list(db.scalars(select(Product).order_by(Product.product_code)).all())
 
 
@@ -324,9 +398,15 @@ def list_products(db: Session = Depends(get_db)) -> list[Product]:
 def create_product(
     payload: ProductCreateIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Product:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["products"],
+        need_write=True,
+    )
     row = Product(
         product_code=payload.product_code.strip(),
         hs_code_tnved=payload.hs_code_tnved.strip(),
@@ -362,9 +442,15 @@ def patch_product(
     product_uuid: uuid_pkg.UUID,
     payload: ProductPatchIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Product:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["products"],
+        need_write=True,
+    )
     row = db.get(Product, product_uuid)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="product_not_found")
@@ -407,9 +493,15 @@ def patch_product(
 def delete_product(
     product_uuid: uuid_pkg.UUID,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> None:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["products"],
+        need_write=True,
+    )
     row = db.get(Product, product_uuid)
     if row is None:
         return
@@ -429,7 +521,17 @@ def delete_product(
 
 
 @router.get("/terminals", response_model=list[TerminalOut])
-def list_terminals(db: Session = Depends(get_db)) -> list[Terminal]:
+def list_terminals(
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> list[Terminal]:
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["terminals"],
+        need_write=False,
+    )
     return list(db.scalars(select(Terminal).order_by(Terminal.terminal_code)).all())
 
 
@@ -437,9 +539,15 @@ def list_terminals(db: Session = Depends(get_db)) -> list[Terminal]:
 def create_terminal(
     payload: TerminalCreateIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Terminal:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["terminals"],
+        need_write=True,
+    )
     row = Terminal(
         terminal_code=payload.terminal_code.strip(),
         terminal_name=payload.terminal_name.strip(),
@@ -473,9 +581,15 @@ def patch_terminal(
     terminal_uuid: uuid_pkg.UUID,
     payload: TerminalPatchIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> Terminal:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["terminals"],
+        need_write=True,
+    )
     row = db.get(Terminal, terminal_uuid)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="terminal_not_found")
@@ -517,9 +631,15 @@ def patch_terminal(
 def delete_terminal(
     terminal_uuid: uuid_pkg.UUID,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> None:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["terminals"],
+        need_write=True,
+    )
     row = db.get(Terminal, terminal_uuid)
     if row is None:
         return
@@ -539,7 +659,17 @@ def delete_terminal(
 
 
 @router.get("/powers-of-attorney", response_model=list[PowerOfAttorneyOut])
-def list_powers_of_attorney(db: Session = Depends(get_db)) -> list[PowerOfAttorney]:
+def list_powers_of_attorney(
+    db: Session = Depends(get_db),
+    request_auth: RequestAuth = Depends(get_request_auth),
+) -> list[PowerOfAttorney]:
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["powers_of_attorney"],
+        need_write=False,
+    )
     return list(db.scalars(select(PowerOfAttorney).order_by(PowerOfAttorney.issue_date.desc())).all())
 
 
@@ -547,9 +677,15 @@ def list_powers_of_attorney(db: Session = Depends(get_db)) -> list[PowerOfAttorn
 def create_power_of_attorney(
     payload: PowerOfAttorneyCreateIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> PowerOfAttorney:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["powers_of_attorney"],
+        need_write=True,
+    )
     row = PowerOfAttorney(
         poa_number=payload.poa_number.strip(),
         issue_date=payload.issue_date,
@@ -581,9 +717,15 @@ def patch_power_of_attorney(
     poa_uuid: uuid_pkg.UUID,
     payload: PowerOfAttorneyPatchIn,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> PowerOfAttorney:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["powers_of_attorney"],
+        need_write=True,
+    )
     row = db.get(PowerOfAttorney, poa_uuid)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="power_of_attorney_not_found")
@@ -616,9 +758,15 @@ def patch_power_of_attorney(
 def delete_power_of_attorney(
     poa_uuid: uuid_pkg.UUID,
     db: Session = Depends(get_db),
-    roles: list[str] = Depends(get_request_roles),
+    request_auth: RequestAuth = Depends(get_request_auth),
 ) -> None:
-    require_admin_roles(roles)
+    require_module_access(
+        db=db,
+        account=request_auth.account,
+        roles=request_auth.roles,
+        module_code=LOOKUP_MODULE_CODES["powers_of_attorney"],
+        need_write=True,
+    )
     row = db.get(PowerOfAttorney, poa_uuid)
     if row is None:
         return

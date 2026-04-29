@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.models.account import Account
+from app.models.lookups import AccountModuleAccess
 
 
 @dataclass
@@ -27,6 +28,34 @@ def parse_roles_header(raw: str | None) -> list[str]:
 def require_admin_roles(roles: list[str]) -> None:
     if "admin" not in roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_role_required")
+
+
+def get_account_module_access_map(db: Session, account_uuid: uuid.UUID) -> dict[str, tuple[bool, bool]]:
+    rows = db.query(AccountModuleAccess).filter(AccountModuleAccess.account_uuid == account_uuid).all()
+    return {row.module_code: (row.can_read, row.can_write) for row in rows}
+
+
+def require_module_access(
+    *,
+    db: Session,
+    account: Account | None,
+    roles: list[str],
+    module_code: str,
+    need_write: bool = False,
+) -> None:
+    # Keep admin role as hard override for emergency/support scenarios.
+    if account is not None and account.role_code == "admin":
+        return
+    if "admin" in roles:
+        return
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="authentication_required")
+    access_map = get_account_module_access_map(db, account.uuid)
+    can_read, can_write = access_map.get(module_code, (False, False))
+    if need_write and not can_write:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"write_access_required:{module_code}")
+    if not need_write and not can_read:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"read_access_required:{module_code}")
 
 
 def _bearer_token(request: Request) -> str | None:

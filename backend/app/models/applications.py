@@ -1,7 +1,7 @@
 import uuid as uuid_pkg
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,9 +55,16 @@ class Application(Base):
     cargo_places_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
     places_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    exporter_name_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
+    importer_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    weight_tons: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)
     destination_place_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
     destination_place_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     izveshenie: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fss_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fss_issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    bill_of_lading_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bill_of_lading_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes_in_table: Mapped[str | None] = mapped_column(Text, nullable=True)
     fss_plan_issue_date: Mapped[date | None] = mapped_column(nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

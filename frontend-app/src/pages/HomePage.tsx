@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 type HomeVariant = "classic" | "table";
 type AppRow = {
   uuid: string;
+  status_code: string;
   stuffing_act_uuid: string | null;
   master_application_uuid: string | null;
   applicant_counterparty_uuid: string | null;
@@ -16,6 +17,10 @@ type AppRow = {
   terminal_uuid: string | null;
   izveshenie: string | null;
   fss_plan_issue_date: string | null;
+  fss_number: string | null;
+  fss_issue_date: string | null;
+  bill_of_lading_number: string | null;
+  bill_of_lading_date: string | null;
   notes_in_table: string | null;
 };
 type CounterpartyRow = { uuid: string; name_ru: string };
@@ -52,7 +57,7 @@ export function HomePage() {
     void (async () => {
       setLoadError(null);
       const [rApps, rCounterparties, rProducts, rTerminals, rManagers] = await Promise.all([
-        api.fetch("/applications?page=1&page_size=200"),
+        api.fetch("/applications?page=1&page_size=100"),
         api.fetch("/lookups/counterparties"),
         api.fetch("/lookups/products"),
         api.fetch("/lookups/terminals"),
@@ -157,6 +162,10 @@ export function HomePage() {
                   <th>Терминал</th>
                   <th>Карантинки</th>
                   <th>Дата выдачи ФСС(план)</th>
+                  <th>Номер ФСС</th>
+                  <th>Дата ФСС</th>
+                  <th>Номер коносамента</th>
+                  <th>Дата коносамента</th>
                   <th>Комментарий</th>
                 </tr>
               </thead>
@@ -214,6 +223,56 @@ export function HomePage() {
                     <td>
                       <input
                         className="input"
+                        title="Номер ФСС"
+                        defaultValue={row.fss_number || ""}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim() || null;
+                          if (next !== (row.fss_number || null)) {
+                            void patchRow(row.uuid, { fss_number: next }, `${row.uuid}:fss-number`);
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        title="Дата ФСС"
+                        type="date"
+                        value={row.fss_issue_date || ""}
+                        onChange={(e) => {
+                          const next = e.target.value || null;
+                          void patchRow(row.uuid, { fss_issue_date: next }, `${row.uuid}:fss-date`);
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        title="Номер коносамента"
+                        defaultValue={row.bill_of_lading_number || ""}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim() || null;
+                          if (next !== (row.bill_of_lading_number || null)) {
+                            void patchRow(row.uuid, { bill_of_lading_number: next }, `${row.uuid}:bill-number`);
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        title="Дата коносамента"
+                        type="date"
+                        value={row.bill_of_lading_date || ""}
+                        onChange={(e) => {
+                          const next = e.target.value || null;
+                          void patchRow(row.uuid, { bill_of_lading_date: next }, `${row.uuid}:bill-date`);
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
                         title="Комментарий в таблице"
                         defaultValue={row.notes_in_table || ""}
                         onBlur={(e) => {
@@ -228,7 +287,7 @@ export function HomePage() {
                 ))}
                 {!rows.length ? (
                   <tr>
-                    <td colSpan={12} className="muted">
+                    <td colSpan={16} className="muted">
                       Нет данных.
                     </td>
                   </tr>

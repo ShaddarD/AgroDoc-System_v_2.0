@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin_accounts import router as admin_accounts_router
 from app.api.applications import router as applications_router
+from app.api.certificates_registry import router as certificates_registry_router
 from app.api.audit_logs_list import router as audit_logs_router
 from app.api.auth import router as auth_router
 from app.api.files import router as files_router
@@ -22,6 +23,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(applications_router)
+app.include_router(certificates_registry_router)
 app.include_router(lookups_router)
 app.include_router(files_router)
 app.include_router(audit_logs_router)
